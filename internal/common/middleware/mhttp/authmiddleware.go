@@ -4,7 +4,6 @@ import (
 	"go-im/internal/common/errcode"
 	"go-im/internal/common/jwt"
 	"go-im/internal/common/response"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,14 +16,14 @@ func AuthMiddleware() gin.HandlerFunc {
 			token, ok = c.GetQuery("token")
 			if !ok {
 				c.Abort()
-				c.JSON(http.StatusOK, response.Error(c, errcode.ErrUnAuthorized))
+				response.Error(c, errcode.ErrUnAuthorized)
 				return
 			}
 		}
 		userId, err := jwt.GetUserIDFromToken(token)
 		if err != nil {
 			c.Abort()
-			c.JSON(http.StatusOK, response.Error(c, errcode.ErrTokenExpired))
+			response.Error(c, errcode.ErrTokenExpired)
 			return
 		}
 		c.Set("user_id", userId)

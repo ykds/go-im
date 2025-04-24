@@ -1,16 +1,16 @@
-addr: 0.0.0.0:8003
-debug: true
+server:
+  addr: 127.0.0.1:8003
+  debug: true
 
 jwt:
   key: "123456"
   expire:
 
 trace:
-  name: user
-  endpoint:
+  name: gateway
+  endpoint: http://192.168.56.133:14268/api/traces
   sampler:
-  enable: true
-
+  enable: false
 
 log:
   level: info

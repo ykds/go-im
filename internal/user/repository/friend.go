@@ -18,7 +18,7 @@ func NewFriendRepository(db *db.DB) *FriendRepository {
 }
 
 func (f *FriendRepository) Delete(ctx context.Context, id uint64) error {
-	err := f.db.Wrap(ctx, func() *gorm.DB {
+	err := f.db.Wrap(ctx, "Delete", func(tx *gorm.DB) *gorm.DB {
 		return f.db.Delete(&model.Friends{}, "id=?", id)
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func (f *FriendRepository) Delete(ctx context.Context, id uint64) error {
 
 func (f *FriendRepository) FindOne(ctx context.Context, id uint64) (*model.Friends, error) {
 	var friend *model.Friends
-	err := f.db.Wrap(ctx, func() *gorm.DB {
+	err := f.db.Wrap(ctx, "FindOne", func(tx *gorm.DB) *gorm.DB {
 		return f.db.First(&friend, "id=?", id)
 	})
 	if err != nil {
@@ -39,7 +39,7 @@ func (f *FriendRepository) FindOne(ctx context.Context, id uint64) (*model.Frien
 }
 
 func (f *FriendRepository) Insert(ctx context.Context, data *model.Friends) (int64, error) {
-	err := f.db.Wrap(ctx, func() *gorm.DB {
+	err := f.db.Wrap(ctx, "Insert", func(tx *gorm.DB) *gorm.DB {
 		return f.db.Create(&data)
 	})
 	if err != nil {
@@ -49,7 +49,7 @@ func (f *FriendRepository) Insert(ctx context.Context, data *model.Friends) (int
 }
 
 func (f *FriendRepository) Update(ctx context.Context, data *model.Friends) error {
-	err := f.db.Wrap(ctx, func() *gorm.DB {
+	err := f.db.Wrap(ctx, "Update", func(tx *gorm.DB) *gorm.DB {
 		return f.db.Updates(&data)
 	})
 	if err != nil {
@@ -60,7 +60,7 @@ func (f *FriendRepository) Update(ctx context.Context, data *model.Friends) erro
 
 func (f *FriendRepository) ListFriends(ctx context.Context, userId int64) ([]*model.Friends, error) {
 	resp := make([]*model.Friends, 0)
-	err := f.db.Wrap(ctx, func() *gorm.DB {
+	err := f.db.Wrap(ctx, "ListFriends", func(tx *gorm.DB) *gorm.DB {
 		return f.db.Find(&resp, "user_id=?", userId)
 	})
 	if err != nil {
@@ -71,7 +71,7 @@ func (f *FriendRepository) ListFriends(ctx context.Context, userId int64) ([]*mo
 
 func (f *FriendRepository) GetFriendById(ctx context.Context, userId int64, friendId int64) (*model.Friends, error) {
 	var friend *model.Friends
-	err := f.db.Wrap(ctx, func() *gorm.DB {
+	err := f.db.Wrap(ctx, "GetFriendById", func(tx *gorm.DB) *gorm.DB {
 		return f.db.First(&friend, "user_id = ? AND friend_id=?", userId, friendId)
 	})
 	if err != nil {

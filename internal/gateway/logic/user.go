@@ -7,8 +7,10 @@ import (
 	"go-im/internal/common/response"
 	"go-im/internal/gateway/server"
 	"go-im/internal/gateway/types"
+	"go-im/internal/pkg/log"
 
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type UserApi struct {
@@ -43,14 +45,16 @@ func (api *UserApi) Login(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	rpcResp, err := api.s.UserRpc.Login(c, &user.LoginReq{
+	a := trace.SpanContextFromContext(c.Request.Context())
+	log.Infof("trace id: %s, span id: %s", a.TraceID().String(), a.SpanID().String())
+	rpcResp, err := api.s.UserRpc.Login(c.Request.Context(), &user.LoginReq{
 		Phone:    req.Phone,
 		Password: req.Password,
 	})
@@ -73,7 +77,7 @@ func (api *UserApi) Register(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -102,7 +106,7 @@ func (api *UserApi) SearchUser(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindQuery(&req); err != nil {
@@ -137,7 +141,7 @@ func (api *UserApi) UpdateInfo(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -160,7 +164,7 @@ func (api *UserApi) UserInfo(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {

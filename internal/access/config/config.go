@@ -53,7 +53,7 @@ func (g GrpcClient) ParseAddr() string {
 }
 
 type Config struct {
-	ServerConfig
+	Server        ServerConfig  `json:"server" yaml:"server"`
 	Redis         redis.Config  `json:"redis" yaml:"redis"`
 	Kafka         mkafka.Config `json:"kafka" yaml:"kafka"`
 	JWT           jwt.Config    `json:"jwt" yaml:"jwt"`

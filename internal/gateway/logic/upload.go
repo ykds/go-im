@@ -38,7 +38,7 @@ func (api *UploadApi) Upload(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	header, err := c.FormFile("file")

@@ -29,15 +29,16 @@ func main() {
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
 
-	if c.Debug {
+	if c.Server.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	engine := gin.New()
-	engine.Use(gin.RecoveryWithWriter(log.Output()))
+	engine.Use(gin.Recovery(), gin.RecoveryWithWriter(log.Output()))
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
+		// engine.Use(otelgin.Middleware("go-test"))
 	}
 	api := engine.Group("/api")
 
@@ -57,11 +58,11 @@ func main() {
 	uploadApi := logic.NewUploadApi(s)
 	uploadApi.RegisterRouter(api)
 
-	if c.Addr == "" {
-		c.Addr = "0.0.0.0:8003"
+	if c.Server.Addr == "" {
+		c.Server.Addr = "0.0.0.0:8003"
 	}
 	svc := http.Server{
-		Addr:    c.Addr,
+		Addr:    c.Server.Addr,
 		Handler: engine,
 	}
 
@@ -73,7 +74,7 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	log.Infof("gateway server listening on %s", c.Addr)
+	log.Infof("gateway server listening on %s", c.Server.Addr)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {

@@ -36,7 +36,7 @@ func (api *SeqApi) GetSeqHandler(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindQuery(&req); err != nil {

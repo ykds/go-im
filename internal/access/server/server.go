@@ -6,7 +6,6 @@ import (
 	"go-im/api/user"
 	"go-im/internal/access/config"
 	"go-im/internal/access/types"
-	"go-im/internal/common/middleware/mgrpc"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/utils"
@@ -48,14 +47,20 @@ type WsServer struct {
 
 func NewServer(c *config.Config) *WsServer {
 	userAddr := c.UserClient.ParseAddr()
+	if userAddr == "" {
+		panic("user service address is empty")
+	}
 	messageAddr := c.MessageClient.ParseAddr()
+	if messageAddr == "" {
+		panic("message service address is empty")
+	}
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	if c.Trace.Enable {
-		opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
-		opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
-	}
+	// if c.Trace.Enable {
+	// 	opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
+	// 	opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
+	// }
 	userConn, err := grpc.NewClient(userAddr, opts...)
 	if err != nil {
 		panic(err)

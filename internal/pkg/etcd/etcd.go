@@ -2,6 +2,7 @@ package etcd
 
 import (
 	"context"
+	"go-im/internal/pkg/utils"
 	"strings"
 	"time"
 
@@ -58,11 +59,16 @@ func (c *Client) Register(name string, addr string) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.KeepAlive(context.Background(), leaseId)
+	r, err := c.KeepAlive(context.Background(), leaseId)
 	if err != nil {
 		return err
 	}
 	c.leaseID[name] = leaseId
+	utils.SafeGo(func() {
+		for {
+			<-r
+		}
+	})
 	return nil
 }
 

@@ -18,7 +18,7 @@ func NewMessageRepository(db *db.DB) *MessageRepository {
 }
 
 func (m *MessageRepository) Insert(ctx context.Context, data *model.Message) (int64, error) {
-	err := m.db.Wrap(ctx, func() *gorm.DB {
+	err := m.db.Wrap(ctx, "Insert", func(tx *gorm.DB) *gorm.DB {
 		return m.db.Create(&data)
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func (m *MessageRepository) Insert(ctx context.Context, data *model.Message) (in
 
 func (m *MessageRepository) ListUnRead(ctx context.Context, toId int64, fromId int64, seq int64) ([]*model.Message, error) {
 	var resp []*model.Message
-	err := m.db.Wrap(ctx, func() *gorm.DB {
+	err := m.db.Wrap(ctx, "ListUnRead", func(tx *gorm.DB) *gorm.DB {
 		return m.db.Find(&resp, "kind='single' AND from_id=? AND to_id=? AND seq >= ?", fromId, toId, seq)
 	})
 	if err != nil {
@@ -40,7 +40,7 @@ func (m *MessageRepository) ListUnRead(ctx context.Context, toId int64, fromId i
 
 func (m *MessageRepository) ListGroupUnRead(ctx context.Context, toId int64, seq int64) ([]*model.Message, error) {
 	var resp []*model.Message
-	err := m.db.Wrap(ctx, func() *gorm.DB {
+	err := m.db.Wrap(ctx, "ListGroupUnRead", func(tx *gorm.DB) *gorm.DB {
 		return m.db.Find(&resp, "kind='group' AND to_id=? AND seq>=?", toId, seq)
 	})
 	if err != nil {

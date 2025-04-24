@@ -39,8 +39,8 @@ type Config struct {
 }
 
 func InitTelemetry(cfg Config) {
+	enable = cfg.Enable
 	if !cfg.Enable {
-		enable = cfg.Enable
 		return
 	}
 	TraceName = cfg.Name

@@ -33,7 +33,7 @@ func main() {
 	rdb := redis.NewRedis(c.Redis)
 	defer rdb.Close()
 
-	if c.Debug {
+	if c.Server.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -51,11 +51,11 @@ func main() {
 	seqApi := logic.NewSeqApi(s)
 	seqApi.RegisterRouter(api)
 
-	if c.Addr == "" {
-		c.Addr = "0.0.0.0:8004"
+	if c.Server.Addr == "" {
+		c.Server.Addr = "0.0.0.0:8004"
 	}
 	svc := http.Server{
-		Addr:    c.Addr,
+		Addr:    c.Server.Addr,
 		Handler: engine,
 	}
 
@@ -67,7 +67,7 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	log.Infof("seqserver server listening on %s", c.Addr)
+	log.Infof("seqserver server listening on %s", c.Server.Addr)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {

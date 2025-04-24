@@ -18,7 +18,7 @@ func NewUserRepository(db *db.DB) *UserRepository {
 }
 
 func (u *UserRepository) Delete(ctx context.Context, id int64) error {
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "Delete", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Delete(&model.Users{}, "id=?", id)
 	})
 	if err != nil {
@@ -29,7 +29,7 @@ func (u *UserRepository) Delete(ctx context.Context, id int64) error {
 
 func (u *UserRepository) FindOne(ctx context.Context, id int64) (*model.Users, error) {
 	var user *model.Users
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "FindOne", func(tx *gorm.DB) *gorm.DB {
 		return u.db.First(&user, "id=?", id)
 	})
 	if err != nil {
@@ -40,8 +40,8 @@ func (u *UserRepository) FindOne(ctx context.Context, id int64) (*model.Users, e
 
 func (u *UserRepository) FindOneByPhone(ctx context.Context, phone string) (*model.Users, error) {
 	var user *model.Users
-	err := u.db.Wrap(ctx, func() *gorm.DB {
-		return u.db.First(&user, "phone=?", phone)
+	err := u.db.Wrap(ctx, "FindOneByPhone", func(tx *gorm.DB) *gorm.DB {
+		return tx.First(&user, "phone=?", phone)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "FindOneByPhone")
@@ -50,7 +50,7 @@ func (u *UserRepository) FindOneByPhone(ctx context.Context, phone string) (*mod
 }
 
 func (u *UserRepository) Insert(ctx context.Context, data *model.Users) (int64, error) {
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "Insert", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Create(&data)
 	})
 	if err != nil {
@@ -60,7 +60,7 @@ func (u *UserRepository) Insert(ctx context.Context, data *model.Users) (int64, 
 }
 
 func (u *UserRepository) Update(ctx context.Context, newData *model.Users) error {
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "Update", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Updates(&newData)
 	})
 	if err != nil {

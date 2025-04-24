@@ -39,7 +39,7 @@ func (api *MessageApi) AckMessage(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -66,7 +66,7 @@ func (api *MessageApi) CreateSession(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -95,7 +95,7 @@ func (api *MessageApi) ListSession(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	rpcResp, err := api.s.MessageRpc.ListSession(c, &message.ListSessionReq{
@@ -144,7 +144,7 @@ func (api *MessageApi) SendMessage(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -173,7 +173,7 @@ func (api *MessageApi) UnreadMessage(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {

@@ -48,7 +48,6 @@ func (m *metadataCarrier) Keys() []string {
 
 func UnaryServerTrace() grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-		spanCtx := trace.SpanContextFromContext(ctx)
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			md = metadata.MD{}
@@ -80,7 +79,7 @@ func UnaryServerTrace() grpc.UnaryServerInterceptor {
 			}
 		}
 
-		ctx, span := mtrace.StartSpan(trace.ContextWithRemoteSpanContext(ctx, spanCtx), name,
+		ctx, span := mtrace.StartSpan(ctx, name,
 			trace.WithSpanKind(trace.SpanKindServer), trace.WithAttributes(attrs...))
 		defer mtrace.EndSpan(span)
 
@@ -185,15 +184,16 @@ func UnaryClientTrace() grpc.UnaryClientInterceptor {
 			attrs = append(attrs, semconv.NetPeerPortKey.String(port))
 		}
 
+		ctx, span := mtrace.StartSpan(ctx, name, trace.WithSpanKind(trace.SpanKindClient), trace.WithAttributes(attrs...))
+		defer mtrace.EndSpan(span)
+
 		md, ok := metadata.FromOutgoingContext(ctx)
 		if !ok {
 			md = metadata.MD{}
 		}
 		propagation := otel.GetTextMapPropagator()
 		propagation.Inject(ctx, &metadataCarrier{&md})
-
-		ctx, span := mtrace.StartSpan(ctx, name, trace.WithSpanKind(trace.SpanKindClient), trace.WithAttributes(attrs...))
-		defer mtrace.EndSpan(span)
+		ctx = metadata.NewOutgoingContext(ctx, md)
 
 		err = invoker(ctx, method, req, reply, cc, opts...)
 		if err != nil {

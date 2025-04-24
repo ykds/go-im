@@ -51,7 +51,7 @@ func (g GrpcClient) ParseAddr() string {
 }
 
 type Config struct {
-	ServerConfig
+	Server        ServerConfig  `json:"server" yaml:"server"`
 	JWT           jwt.Config    `json:"jwt" yaml:"jwt"`
 	Log           log.Config    `json:"log" yaml:"log"`
 	Trace         mtrace.Config `json:"trace" yaml:"trace"`

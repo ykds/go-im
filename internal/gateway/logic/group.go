@@ -46,7 +46,7 @@ func (api *GroupApi) ApplyInGroup(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -72,7 +72,7 @@ func (api *GroupApi) CreateGroup(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -104,7 +104,7 @@ func (api *GroupApi) DismissGroup(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -129,7 +129,7 @@ func (api *GroupApi) ExitGroup(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -154,7 +154,7 @@ func (api *GroupApi) HandlerGroupApply(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -180,7 +180,7 @@ func (api *GroupApi) InviteMember(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -206,7 +206,7 @@ func (api *GroupApi) ListGroupApply(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	rpcResp, err := api.s.MessageRpc.ListGroupApply(c, &message.ListGroupApplyReq{
@@ -242,7 +242,7 @@ func (api *GroupApi) ListGroup(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	rpcResp, err := api.s.MessageRpc.ListGroup(c, &message.ListGroupReq{
@@ -285,7 +285,7 @@ func (api *GroupApi) ListGroupMember(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindQuery(&req); err != nil {
@@ -322,7 +322,7 @@ func (api *GroupApi) MoveOutMember(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -348,7 +348,7 @@ func (api *GroupApi) SearchGroup(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	if err = c.BindQuery(&req); err != nil {
@@ -386,7 +386,7 @@ func (api *GroupApi) UpdateGroupInfo(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {

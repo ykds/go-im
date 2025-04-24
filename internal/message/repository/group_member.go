@@ -21,7 +21,7 @@ func NewGroupMemberRepository(db *db.DB) *GroupMemberRepository {
 }
 
 func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64, userId int64) error {
-	_, span := mtrace.StartSpan(ctx, "gorm", trace.WithSpanKind(trace.SpanKindInternal))
+	_, span := mtrace.StartSpan(ctx, "InviteMember", trace.WithSpanKind(trace.SpanKindInternal))
 	defer mtrace.EndSpan(span)
 	sql := make([]string, 0)
 	defer func() {
@@ -34,7 +34,9 @@ func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64,
 			Kind:   "group",
 		}
 		stmt := tx.Create(session)
-		sql = append(sql, stmt.Statement.SQL.String())
+		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			return tx.Create(session)
+		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
@@ -44,7 +46,9 @@ func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64,
 			SessionId: session.ID,
 		}
 		stmt = tx.Create(member)
-		sql = append(sql, stmt.Statement.SQL.String())
+		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			return tx.Create(member)
+		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
@@ -58,7 +62,7 @@ func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64,
 
 func (g *GroupMemberRepository) IsMember(ctx context.Context, groupId int64, userId int64) (bool, error) {
 	var resp *model.GroupMember
-	err := g.db.Wrap(ctx, func() *gorm.DB {
+	err := g.db.Wrap(ctx, "IsMember", func(tx *gorm.DB) *gorm.DB {
 		return g.db.First(&resp, "group_id=? AND user_id=?", groupId, userId)
 	})
 	if err != nil {
@@ -71,7 +75,7 @@ func (g *GroupMemberRepository) IsMember(ctx context.Context, groupId int64, use
 }
 
 func (g *GroupMemberRepository) RemvoeMember(ctx context.Context, groupId int64, userId int64) error {
-	_, span := mtrace.StartSpan(ctx, "gorm", trace.WithSpanKind(trace.SpanKindInternal))
+	_, span := mtrace.StartSpan(ctx, "RemvoeMember", trace.WithSpanKind(trace.SpanKindInternal))
 	defer mtrace.EndSpan(span)
 	sql := make([]string, 0)
 	defer func() {
@@ -79,12 +83,16 @@ func (g *GroupMemberRepository) RemvoeMember(ctx context.Context, groupId int64,
 	}()
 	err := g.db.Transaction(func(tx *gorm.DB) error {
 		stmt := tx.Delete(&model.GroupMember{}, "group_id=? AND user_id=?", groupId, userId)
-		sql = append(sql, stmt.Statement.SQL.String())
+		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			return tx.Delete(&model.GroupMember{}, "group_id=? AND user_id=?", groupId, userId)
+		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
 		stmt = tx.Delete(&model.UserSession{}, "group_id=? AND user_id=?", groupId, userId)
-		sql = append(sql, stmt.Statement.SQL.String())
+		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			return tx.Delete(&model.UserSession{}, "group_id=? AND user_id=?", groupId, userId)
+		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
@@ -98,7 +106,7 @@ func (g *GroupMemberRepository) RemvoeMember(ctx context.Context, groupId int64,
 
 func (g *GroupMemberRepository) ListGroupByUserId(ctx context.Context, userId int64) ([]int64, error) {
 	resp := make([]*model.GroupMember, 0)
-	err := g.db.Wrap(ctx, func() *gorm.DB {
+	err := g.db.Wrap(ctx, "ListGroupByUserId", func(tx *gorm.DB) *gorm.DB {
 		return g.db.Find(&resp, "user_id=?", userId)
 	})
 	if err != nil {
@@ -113,7 +121,7 @@ func (g *GroupMemberRepository) ListGroupByUserId(ctx context.Context, userId in
 
 func (g *GroupMemberRepository) ListMember(ctx context.Context, groupId int64) ([]*model.GroupMember, error) {
 	var resp []*model.GroupMember
-	err := g.db.Wrap(ctx, func() *gorm.DB {
+	err := g.db.Wrap(ctx, "ListMember", func(tx *gorm.DB) *gorm.DB {
 		return g.db.Find(&resp, "group_id=?", groupId)
 	})
 	if err != nil {

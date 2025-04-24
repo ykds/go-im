@@ -24,7 +24,13 @@ func NewServer(c *config.Config) *Server {
 		opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
 	}
 	userAddr := c.UserClient.ParseAddr()
+	if userAddr == "" {
+		panic("user service address is empty")
+	}
 	messageAddr := c.MessageClient.ParseAddr()
+	if messageAddr == "" {
+		panic("message service address is empty")
+	}
 	userConn, err := grpc.NewClient(userAddr, opts...)
 	if err != nil {
 		panic(err)

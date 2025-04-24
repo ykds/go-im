@@ -30,10 +30,10 @@ func main() {
 
 	wsServer := server.NewServer(c)
 
-	if c.Addr == "" {
-		c.Addr = "0.0.0.0:8002"
+	if c.Server.Addr == "" {
+		c.Server.Addr = "0.0.0.0:8002"
 	}
-	if c.Debug {
+	if c.Server.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -45,7 +45,7 @@ func main() {
 	}
 	engine.GET("/ws", mhttp.AuthMiddleware(), wsServer.Handler)
 	svc := http.Server{
-		Addr:    c.Addr,
+		Addr:    c.Server.Addr,
 		Handler: engine,
 	}
 
@@ -57,7 +57,7 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	log.Infof("access server listening on %s", c.Addr)
+	log.Infof("access server listening on %s", c.Server.Addr)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {

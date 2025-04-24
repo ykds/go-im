@@ -39,7 +39,7 @@ func (api *FriendApi) DeleteFriend(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -64,7 +64,7 @@ func (api *FriendApi) FriendApply(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -86,7 +86,7 @@ func (api *FriendApi) HandleApply(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(nil)
+			response.Success(c, nil)
 		}
 	}()
 	if err = c.BindJSON(&req); err != nil {
@@ -108,7 +108,7 @@ func (api *FriendApi) ListApply(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	rpcResp, err := api.s.UserRpc.ListApply(c, &user.ListApplyReq{UserId: c.GetInt64("user_id")})
@@ -139,7 +139,7 @@ func (api *FriendApi) ListFriend(c *gin.Context) {
 		if err != nil {
 			response.Error(c, err)
 		} else {
-			response.Success(resp)
+			response.Success(c, resp)
 		}
 	}()
 	rpcResp, err := api.s.UserRpc.ListFriends(c, &user.ListFriendsReq{UserId: c.GetInt64("user_id")})

@@ -85,11 +85,14 @@ func (db *DB) Close() error {
 	return db.sqlDB.Close()
 }
 
-func (db *DB) Wrap(ctx context.Context, f func() *gorm.DB) error {
-	_, span := mtrace.StartSpan(ctx, "gorm", trace.WithSpanKind(trace.SpanKindInternal))
+func (db *DB) Wrap(ctx context.Context, name string, f func(tx *gorm.DB) *gorm.DB) error {
+	_, span := mtrace.StartSpan(ctx, name, trace.WithSpanKind(trace.SpanKindInternal))
 	defer mtrace.EndSpan(span)
-	stmt := f()
-	span.SetAttributes(mtrace.SQLKey.String(stmt.Statement.SQL.String()))
+	sql := db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return f(tx)
+	})
+	stmt := f(db.DB)
+	span.SetAttributes(mtrace.SQLKey.String(sql))
 	if stmt.Error != nil {
 		span.SetAttributes(mtrace.SQLError.String(stmt.Error.Error()))
 	}

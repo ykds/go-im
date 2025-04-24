@@ -33,14 +33,14 @@ func main() {
 	log.InitLogger(c.Log)
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
-	cli := etcd.NewClient(c.Etcd)
+	cli := etcd.NewClient(c.Server.Etcd)
 	if cli != nil {
-		err := cli.Register(c.Etcd.Key, c.Etcd.Addr)
+		err := cli.Register(c.Server.Etcd.Key, c.Server.Addr)
 		if err != nil {
 			panic(err)
 		}
 		defer cli.Close()
-		defer cli.UnRegister(c.Etcd.Key)
+		defer cli.UnRegister(c.Server.Etcd.Key)
 	}
 
 	rdb := redis.NewRedis(c.Redis)
@@ -58,15 +58,15 @@ func main() {
 				Time:              10 * time.Second,
 				Timeout:           2 * time.Second,
 			}),
-		grpc.ChainUnaryInterceptor(mgrpc.UnaryServerTrace()),
-		grpc.ChainStreamInterceptor(mgrpc.StreamServerTrace()),
+		grpc.ChainUnaryInterceptor(mgrpc.UnaryServerRecovery(), mgrpc.UnaryServerTrace()),
+		grpc.ChainStreamInterceptor(mgrpc.StreamServerRecovery(), mgrpc.StreamServerTrace()),
 	)
 	user.RegisterUserServer(grpcSvc, svc)
 
-	if c.Addr == "" {
-		c.Addr = "0.0.0.0:8000"
+	if c.Server.Addr == "" {
+		c.Server.Addr = "0.0.0.0:8000"
 	}
-	listen, err := net.Listen("tcp", c.Addr)
+	listen, err := net.Listen("tcp", c.Server.Addr)
 	if err != nil {
 		panic(err)
 	}
@@ -79,7 +79,7 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	log.Infof("user rpc server listening on %s", c.Addr)
+	log.Infof("user rpc server listening on %s", c.Server.Addr)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {

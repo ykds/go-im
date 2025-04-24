@@ -22,7 +22,7 @@ func NewUserSessionRepository(db *db.DB) *UserSessionRepository {
 }
 
 func (u *UserSessionRepository) Delete(ctx context.Context, id int64) error {
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "Delete", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Delete(&model.UserSession{}, "id=?", id)
 	})
 	if err != nil {
@@ -33,7 +33,7 @@ func (u *UserSessionRepository) Delete(ctx context.Context, id int64) error {
 
 func (u *UserSessionRepository) GetUserSession(ctx context.Context, userId int64, to int64) (*model.UserSession, error) {
 	var resp *model.UserSession
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "GetUserSession", func(tx *gorm.DB) *gorm.DB {
 		return u.db.First(&resp, "user_id=? AND to_id=?", userId, to)
 	})
 	if err != nil {
@@ -44,7 +44,7 @@ func (u *UserSessionRepository) GetUserSession(ctx context.Context, userId int64
 
 func (u *UserSessionRepository) ListUserSession(ctx context.Context, userId int64) ([]*model.UserSession, error) {
 	var resp []*model.UserSession
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "ListUserSession", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Find(&resp, "user_id=?", userId)
 	})
 	if err != nil {
@@ -54,7 +54,7 @@ func (u *UserSessionRepository) ListUserSession(ctx context.Context, userId int6
 }
 
 func (u *UserSessionRepository) UpdateSessionSeq(ctx context.Context, id int64, seq int64) error {
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "UpdateSessionSeq", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Model(&model.UserSession{}).Where("id=? AND seq <?", id, seq).Update("seq=?", seq)
 	})
 	if err != nil {
@@ -64,7 +64,7 @@ func (u *UserSessionRepository) UpdateSessionSeq(ctx context.Context, id int64, 
 }
 
 func (u *UserSessionRepository) Upsert(ctx context.Context, s *model.UserSession) error {
-	_, span := mtrace.StartSpan(ctx, "gorm", trace.WithSpanKind(trace.SpanKindInternal))
+	_, span := mtrace.StartSpan(ctx, "Upsert", trace.WithSpanKind(trace.SpanKindInternal))
 	defer mtrace.EndSpan(span)
 	sql := make([]string, 0)
 	defer func() {
@@ -75,7 +75,12 @@ func (u *UserSessionRepository) Upsert(ctx context.Context, s *model.UserSession
 			Columns:   []clause.Column{{Name: "user_id"}},
 			DoNothing: true,
 		}).Create(&s)
-		sql = append(sql, stmt.Statement.SQL.String())
+		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			return tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "user_id"}},
+				DoNothing: true,
+			}).Create(&s)
+		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
@@ -88,7 +93,12 @@ func (u *UserSessionRepository) Upsert(ctx context.Context, s *model.UserSession
 			Columns:   []clause.Column{{Name: "user_id"}},
 			DoNothing: true,
 		}).Create(&s2)
-		sql = append(sql, stmt.Statement.SQL.String())
+		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
+			return tx.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "user_id"}},
+				DoNothing: true,
+			}).Create(&s2)
+		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
@@ -101,7 +111,7 @@ func (u *UserSessionRepository) Upsert(ctx context.Context, s *model.UserSession
 }
 
 func (u *UserSessionRepository) Create(ctx context.Context, s *model.UserSession) (int64, error) {
-	_, span := mtrace.StartSpan(ctx, "gorm", trace.WithSpanKind(trace.SpanKindInternal))
+	_, span := mtrace.StartSpan(ctx, "Create", trace.WithSpanKind(trace.SpanKindInternal))
 	defer mtrace.EndSpan(span)
 	sql := make([]string, 0)
 	defer func() {
@@ -111,13 +121,20 @@ func (u *UserSessionRepository) Create(ctx context.Context, s *model.UserSession
 		Columns:   []clause.Column{{Name: "user_id"}},
 		DoNothing: true,
 	}).Create(&s)
-	sql = append(sql, stmt.Statement.SQL.String())
+	sql = append(sql, u.db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "user_id"}},
+			DoNothing: true,
+		}).Create(&s)
+	}))
 	if stmt.Error != nil {
 		return 0, errors.Wrap(stmt.Error, "Create")
 	}
 	var resp *model.UserSession
 	stmt = u.db.First(&resp, "user_id=? AND to_id=? AND kind=?", s.UserId, s.ToId, s.Kind)
-	sql = append(sql, stmt.Statement.SQL.String())
+	sql = append(sql, u.db.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.First(&resp, "user_id=? AND to_id=? AND kind=?", s.UserId, s.ToId, s.Kind)
+	}))
 	if stmt.Error != nil {
 		return 0, errors.Wrap(stmt.Error, "Create")
 	}

@@ -19,7 +19,7 @@ func NewUserGroupRepository(db *db.DB) *UserGroupRepository {
 
 func (u *UserGroupRepository) ListUserGroup(ctx context.Context, userId int64) ([]*model.UserGroup, error) {
 	var result []*model.UserGroup
-	err := u.db.Wrap(ctx, func() *gorm.DB {
+	err := u.db.Wrap(ctx, "ListUserGroup", func(tx *gorm.DB) *gorm.DB {
 		return u.db.Find(&result, "user_id=?", userId)
 	})
 	if err != nil {

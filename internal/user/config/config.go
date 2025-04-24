@@ -19,13 +19,13 @@ type ServerConfig struct {
 }
 
 type Config struct {
-	ServerConfig
-	Mysql db.Config     `json:"mysql" yaml:"mysql"`
-	Redis redis.Config  `json:"redis" yaml:"redis"`
-	Kafka mkafka.Config `json:"kafka" yaml:"kafka"`
-	JWT   jwt.Config    `json:"jwt" yaml:"jwt"`
-	Log   log.Config    `json:"log" yaml:"log"`
-	Trace mtrace.Config `json:"trace" yaml:"trace"`
+	Server ServerConfig  `json:"server" yaml:"server"`
+	Mysql  db.Config     `json:"mysql" yaml:"mysql"`
+	Redis  redis.Config  `json:"redis" yaml:"redis"`
+	Kafka  mkafka.Config `json:"kafka" yaml:"kafka"`
+	JWT    jwt.Config    `json:"jwt" yaml:"jwt"`
+	Log    log.Config    `json:"log" yaml:"log"`
+	Trace  mtrace.Config `json:"trace" yaml:"trace"`
 }
 
 func ParseConfig(file string) *Config {

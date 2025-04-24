@@ -8,7 +8,6 @@ import (
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/common/errcode"
-	"go-im/internal/common/middleware/mgrpc"
 	"go-im/internal/common/types"
 	"go-im/internal/message/config"
 	"go-im/internal/message/model"
@@ -45,10 +44,10 @@ func NewServer(cfg *config.Config, redis *redis.Redis, db *db.DB, kafkaWriter *m
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	if cfg.Trace.Enable {
-		opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
-		opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
-	}
+	// if cfg.Trace.Enable {
+	// 	opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
+	// 	opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
+	// }
 	conn, err := grpc.NewClient(userRpcAddr, opts...)
 	if err != nil {
 		panic(err)

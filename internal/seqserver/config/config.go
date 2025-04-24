@@ -16,11 +16,11 @@ type ServerConfig struct {
 }
 
 type Config struct {
-	ServerConfig
-	JWT   jwt.Config    `json:"jwt" yaml:"jwt"`
-	Log   log.Config    `json:"log" yaml:"log"`
-	Trace mtrace.Config `json:"trace" yaml:"trace"`
-	Redis redis.Config  `json:"redis" yaml:"redis"`
+	Server ServerConfig  `json:"server" yaml:"server"`
+	JWT    jwt.Config    `json:"jwt" yaml:"jwt"`
+	Log    log.Config    `json:"log" yaml:"log"`
+	Trace  mtrace.Config `json:"trace" yaml:"trace"`
+	Redis  redis.Config  `json:"redis" yaml:"redis"`
 }
 
 func ParseConfig(file string) *Config {

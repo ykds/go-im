@@ -1,7 +1,8 @@
-addr: 0.0.0.0:8000
-etcd:
-  key: user.rpc
-  addr: 192.168.56.133:2379
+server:
+  addr: 127.0.0.1:8000
+  etcd:
+    key: user.rpc
+    addr: 192.168.56.133:2379
 
 mysql:
   driver: mysql
@@ -20,9 +21,9 @@ redis:
 
 trace:
   name: user
-  endpoint:
+  endpoint: http://192.168.56.133:14268/api/traces
   sampler:
-  enable: true
+  enable: false
 
 log:
   level: info

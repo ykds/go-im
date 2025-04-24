@@ -1,10 +1,11 @@
 package response
 
 import (
-	"context"
 	"errors"
 	"go-im/internal/common/errcode"
 	"go-im/internal/pkg/log"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Response struct {
@@ -13,15 +14,15 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`
 }
 
-func Success(data any) Response {
-	return Response{
+func Success(c *gin.Context, data any) {
+	c.JSON(200, Response{
 		Code:    200,
 		Message: "success",
 		Data:    data,
-	}
+	})
 }
 
-func Error(ctx context.Context, err error) Response {
+func Error(c *gin.Context, err error) {
 	log.Errorf("err: %v", err)
 	code := 500
 	message := "服务器异常"
@@ -30,8 +31,8 @@ func Error(ctx context.Context, err error) Response {
 		code = e.Code
 		message = e.Message
 	}
-	return Response{
+	c.JSON(200, Response{
 		Code:    code,
 		Message: message,
-	}
+	})
 }
