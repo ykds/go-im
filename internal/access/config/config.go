@@ -6,6 +6,7 @@ import (
 	"go-im/internal/pkg/etcd"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mkafka"
+	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
 	"os"
@@ -53,14 +54,15 @@ func (g GrpcClient) ParseAddr() string {
 }
 
 type Config struct {
-	Server        ServerConfig  `json:"server" yaml:"server"`
-	Redis         redis.Config  `json:"redis" yaml:"redis"`
-	Kafka         mkafka.Config `json:"kafka" yaml:"kafka"`
-	JWT           jwt.Config    `json:"jwt" yaml:"jwt"`
-	Log           log.Config    `json:"log" yaml:"log"`
-	Trace         mtrace.Config `json:"trace" yaml:"trace"`
-	UserClient    GrpcClient    `json:"user_client" yaml:"user_client"`
-	MessageClient GrpcClient    `json:"message_client" yaml:"message_client"`
+	Server        ServerConfig       `json:"server" yaml:"server"`
+	Redis         redis.Config       `json:"redis" yaml:"redis"`
+	Kafka         mkafka.Config      `json:"kafka" yaml:"kafka"`
+	JWT           jwt.Config         `json:"jwt" yaml:"jwt"`
+	Log           log.Config         `json:"log" yaml:"log"`
+	Trace         mtrace.Config      `json:"trace" yaml:"trace"`
+	UserClient    GrpcClient         `json:"user_client" yaml:"user_client"`
+	MessageClient GrpcClient         `json:"message_client" yaml:"message_client"`
+	Prometheus    mprometheus.Config `json:"prometheus" yaml:"prometheus"`
 }
 
 func ParseConfig(file string) *Config {

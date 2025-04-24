@@ -32,7 +32,7 @@ func main() {
 	mtrace.InitTelemetry(c.Trace)
 
 	engine := gin.New()
-	engine.Use(gin.Recovery(), gin.RecoveryWithWriter(log.Output()))
+	engine.Use(gin.Recovery(), gin.RecoveryWithWriter(log.Output()), mhttp.Cors())
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
 	}
@@ -45,6 +45,7 @@ func main() {
 	if c.Prometheus.Enable {
 		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	}
+	engine.Static("/static", c.Server.Static)
 
 	api := engine.Group("/api")
 

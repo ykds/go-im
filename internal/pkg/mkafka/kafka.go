@@ -2,11 +2,11 @@ package mkafka
 
 import (
 	"context"
+	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/utils"
 	"time"
 
 	"github.com/segmentio/kafka-go"
-	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const (
@@ -75,7 +75,7 @@ func NewProducer(c Config, opts ...WriterOption) *Writer {
 		for item := range w.req {
 			err := w.WriteMessages(context.Background(), item)
 			if err != nil {
-				logx.Errorf("发送kafka消息失败, %v", err)
+				log.Errorf("发送kafka消息失败, %v", err)
 			}
 		}
 	})

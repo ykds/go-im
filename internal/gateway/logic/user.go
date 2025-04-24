@@ -25,7 +25,7 @@ func (api *UserApi) RegisterRouter(engine *gin.RouterGroup) {
 		noauth.POST("/login", api.Login)
 		noauth.POST("/register", api.Register)
 	}
-	auth := engine.GET("/user", mhttp.AuthMiddleware())
+	auth := engine.Group("/user", mhttp.AuthMiddleware())
 	{
 		auth.GET("/info", api.UserInfo)
 		auth.PUT("/info", api.UpdateInfo)
@@ -152,7 +152,6 @@ func (api *UserApi) UpdateInfo(c *gin.Context) {
 
 func (api *UserApi) UserInfo(c *gin.Context) {
 	var (
-		req  types.UserInfoReq
 		resp types.UserInfoResp
 		err  error
 	)
@@ -163,10 +162,6 @@ func (api *UserApi) UserInfo(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	if err = c.BindJSON(&req); err != nil {
-		err = errcode.ErrInvalidParam
-		return
-	}
 	rpcResp, err := api.s.UserRpc.UserInfo(c, &user.UserInfoReq{UserId: c.GetInt64("user_id")})
 	if err != nil {
 		err = errcode.FromRpcError(err)

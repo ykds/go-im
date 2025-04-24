@@ -48,7 +48,7 @@ kafka:
   brokers:
   - "localhost:9192"
   - "localhost:9292"
-  - "localhost.101:9392"
+  - "localhost:9392"
   consumer_group:
     - 
       topic: "message"

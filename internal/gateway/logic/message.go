@@ -176,7 +176,7 @@ func (api *MessageApi) UnreadMessage(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	if err = c.BindJSON(&req); err != nil {
+	if err = c.BindQuery(&req); err != nil {
 		err = errcode.ErrInvalidParam
 		return
 	}

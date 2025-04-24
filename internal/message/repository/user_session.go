@@ -55,7 +55,7 @@ func (u *UserSessionRepository) ListUserSession(ctx context.Context, userId int6
 
 func (u *UserSessionRepository) UpdateSessionSeq(ctx context.Context, id int64, seq int64) error {
 	err := u.db.Wrap(ctx, "UpdateSessionSeq", func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&model.UserSession{}).Where("id=? AND seq <?", id, seq).Update("seq=?", seq)
+		return tx.Model(&model.UserSession{}).Where("id=? AND seq < ?", id, seq).Update("seq", seq)
 	})
 	if err != nil {
 		return errors.Wrap(err, "UpdateSessionSeq")

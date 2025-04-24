@@ -16,6 +16,7 @@ import (
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var cfg = flag.String("c", "./config.yaml", "")
@@ -40,12 +41,15 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	engine := gin.New()
-	engine.Use(gin.RecoveryWithWriter(log.Output()))
+	engine.Use(gin.RecoveryWithWriter(log.Output()), mhttp.Cors())
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
 	}
 	if c.Server.Debug {
 		pprof.Register(engine)
+	}
+	if c.Prometheus.Enable {
+		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	}
 	engine.GET("/ws", mhttp.AuthMiddleware(), wsServer.Handler)
 	svc := http.Server{

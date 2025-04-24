@@ -20,7 +20,7 @@ func NewFriendApi(s *server.Server) *FriendApi {
 }
 
 func (api *FriendApi) RegisterRouter(engine *gin.RouterGroup) {
-	friend := engine.Group("/friend", mhttp.AuthMiddleware())
+	friend := engine.Group("/friends", mhttp.AuthMiddleware())
 	{
 		friend.DELETE("", api.DeleteFriend)
 		friend.GET("", api.ListFriend)

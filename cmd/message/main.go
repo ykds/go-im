@@ -51,7 +51,6 @@ func main() {
 	defer db.Close()
 	kafkaWriter := mkafka.NewProducer(c.Kafka)
 	defer kafkaWriter.Close()
-
 	if c.Prometheus.Enable {
 		mprometheus.GormPrometheus(&c.Prometheus, db.DB, "im")
 		prometheus.MustRegister(mprometheus.RedisPrometheus(&c.Prometheus, rdb, "go-im", "message"))

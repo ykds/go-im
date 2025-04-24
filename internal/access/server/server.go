@@ -6,6 +6,7 @@ import (
 	"go-im/api/user"
 	"go-im/internal/access/config"
 	"go-im/internal/access/types"
+	"go-im/internal/common/middleware/mgrpc"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/utils"
@@ -57,10 +58,10 @@ func NewServer(c *config.Config) *WsServer {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	// if c.Trace.Enable {
-	// 	opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
-	// 	opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
-	// }
+	if c.Trace.Enable {
+		opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
+		opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
+	}
 	userConn, err := grpc.NewClient(userAddr, opts...)
 	if err != nil {
 		panic(err)
@@ -288,7 +289,6 @@ func (ws *WsServer) consume() {
 			}
 		})
 	}
-
 }
 
 func (ws *WsServer) Stop() {
