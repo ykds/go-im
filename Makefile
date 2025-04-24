@@ -11,20 +11,13 @@ else
 	KILL=pkill -9
 endif
 
-.PHONY: build-all-windows build-all-linux build-gateway build-user build-message build-access build-seqserver clean
+.PHONY: build-all build-all build-gateway build-user build-message build-access build-seqserver clean
 
-build-all-windows:
+build-all:
 	@mkdir -p $(BUILD_DIR)
 	@for service in $(services); do \
 		echo "build $$service..."; \
-		GOOS=windows go build -o ./build/$$(basename $$service)$(SUFFIX) ./$$service/main.go; \
-	done
-
-build-all-linux:
-	@mkdir -p $(BUILD_DIR)
-	@for service in $(services); do \
-		echo "build $$service..."; \
-		GOOS=linux go build -o ./build/$$(basename $$service) ./$$service/main.go; \
+		GOOS=$(GOOS) go build -o ./build/$$(basename $$service)$(SUFFIX) ./$$service/main.go; \
 	done
 
 build-gateway:

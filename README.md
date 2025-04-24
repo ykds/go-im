@@ -1,4 +1,4 @@
-## 概述
+## Introduction
 go-im 是基于 Golang + Gin + Gorm 框架实现的即使聊天服务，主要服务与功能：
 - api服务
 - 用户服务
@@ -16,8 +16,16 @@ go-im 是基于 Golang + Gin + Gorm 框架实现的即使聊天服务，主要�
 
 **接入层服务**前端通过连接接入层，并通过心跳维持在线状态，为前端提供实时的消息通知。
 
+## Features
+- Etcd 实现微服务注册与发现
+- OpenTelemtry + Jaeger实现微服务之间链路追踪
+- Prometheus + Grafana 实现应用指标上传与监控
+- ELK 实现分布式日志收集
+- ackqueue 实现消息确认和重传
+- msgbox 实现会话级别消息信箱
+- kafka 支撑高吞吐消息发送
 
-## 架构图
+## Arch
 ![arch](./doc/arch.png)
 
 api服务、用户服务、消息服务、接入层、发号器服务都是以微服务运行，并通过 etcd 完成服务发现。
@@ -28,7 +36,7 @@ api服务、用户服务、消息服务之间通过 grpc 来实现通讯。
 
 
 
-## 部署
+## Deployment
 ```
 Linux 环境：
 - Ubuntu 22.04
@@ -42,29 +50,43 @@ Linux 环境：
 > CREATE DATABASE im;
 > mysql im < im.sql
 
-2. Docker 运行 Kafka、Redis、Jaeger、etcd
+2. Docker 运行 `Kafka、Redis、Jaeger、etcd`
    
 修改`.env`中`HOST`为主机提供外部访问IP地址
+
+如虚拟机IP：
+> HOST=192.168.x.x
+
+运行 Docker 容器
 > docker compose -f kafka.yaml up -d
 >
 > docker compose -f other.yaml up -d
+>
+> > 如果不需要 Jaeger 和 Etcd，将上一条命令换成：
+>
+> docker compose -f other.yaml up redis -d
 
-3. 运行 ELK (可选)
+4. Docker 运行 `promethues、grafana` (可选)
+> docker compose -f promethues.yaml up -d
+
+3. 运行 `ELK` (可选)
 > docker compose -f elk.yaml up -d
 
 4. 编译服务
 > make build-all
 
-5. 启动服务
-> ./build/api_gateway
+5. 重命名`cmd/*`下每个服务的`config.yaml.example`为`config.yaml`并修改配置
+
+6. 启动服务
+> ./build/gateway -c cmd/gateway/config.yaml
 > 
-> ./build/user
+> ./build/user -c cmd/user/config.yaml
 > 
-> ./build/message
+> ./build/message -c cmd/message/config.yaml
 > 
-> ./build/access
+> ./build/access -c cmd/access/config.yaml
 > 
-> ./build/seqserver
+> ./build/seqserver -c cmd/seqserver/config.yaml
 
 ## Demo演示
    - 注册

@@ -1,0 +1,45 @@
+server:
+  addr: 0.0.0.0:8002
+  debug: true
+
+jwt:
+  key: "123456"
+  expire: 3600
+
+trace:
+  name: access
+  endpoint: http://localhost:14268/api/traces
+  sampler: 1
+  enable: false
+
+log:
+  level: info
+  target:
+    - 
+      type: console
+    -
+      type: network
+      protocol: tcp
+      addr: localhost:0
+    -
+      type: file
+      filename: access.log
+      max_size: 1
+      max_age: 1
+      compress: false
+      max_backups: 1
+
+user_client:
+  type: etcd
+  etcd:
+    key: user.rpc
+    addr: localhost:2379
+
+message_client:
+  type: etcd
+  etcd:
+    key: message.rpc
+    addr: localhost:2379
+
+prometheus:
+  enable: true

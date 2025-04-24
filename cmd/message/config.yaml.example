@@ -1,0 +1,70 @@
+server:
+  addr: 0.0.0.0:8002
+  debug: true
+  etcd:
+    key: user.rpc
+    addr: localhost:2379
+    
+mysql:
+  driver: mysql
+  host: localhost
+  port: 3306
+  user: root
+  password: 
+  db_name: 
+  timezone: Asia/Shanghai
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_life_time: 60000
+
+redis:
+  addr: localhost:6379
+
+trace:
+  name: access
+  endpoint: http://localhost:14268/api/traces
+  sampler: 1
+  enable: false
+
+log:
+  level: info
+  target:
+    - 
+      type: console
+    -
+      type: network
+      protocol: tcp
+      addr: localhost:0
+    -
+      type: file
+      filename: access.log
+      max_size: 1
+      max_age: 1
+      compress: false
+      max_backups: 1
+
+user_client:
+  type: etcd
+  etcd:
+    key: user.rpc
+    addr: localhost:2379
+
+kafka:
+  brokers:
+  - "localhost:9192"
+  - "localhost:9292"
+  - "localhost.101:9392"
+  consumer_group:
+    - 
+      topic: "message"
+      group: "access-message"
+    - 
+      topic: "apply-friend-notify"
+      group: "access-friend"
+    - 
+      topic: "group-apply-notify"
+      group: "access-group"
+
+prometheus:
+  listen: localhost:0
+  enable: true
