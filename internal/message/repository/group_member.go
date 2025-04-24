@@ -63,7 +63,7 @@ func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64,
 func (g *GroupMemberRepository) IsMember(ctx context.Context, groupId int64, userId int64) (bool, error) {
 	var resp *model.GroupMember
 	err := g.db.Wrap(ctx, "IsMember", func(tx *gorm.DB) *gorm.DB {
-		return g.db.First(&resp, "group_id=? AND user_id=?", groupId, userId)
+		return tx.First(&resp, "group_id=? AND user_id=?", groupId, userId)
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -107,7 +107,7 @@ func (g *GroupMemberRepository) RemvoeMember(ctx context.Context, groupId int64,
 func (g *GroupMemberRepository) ListGroupByUserId(ctx context.Context, userId int64) ([]int64, error) {
 	resp := make([]*model.GroupMember, 0)
 	err := g.db.Wrap(ctx, "ListGroupByUserId", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Find(&resp, "user_id=?", userId)
+		return tx.Find(&resp, "user_id=?", userId)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "ListGroupByUserId")
@@ -122,7 +122,7 @@ func (g *GroupMemberRepository) ListGroupByUserId(ctx context.Context, userId in
 func (g *GroupMemberRepository) ListMember(ctx context.Context, groupId int64) ([]*model.GroupMember, error) {
 	var resp []*model.GroupMember
 	err := g.db.Wrap(ctx, "ListMember", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Find(&resp, "group_id=?", groupId)
+		return tx.Find(&resp, "group_id=?", groupId)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "ListMember")

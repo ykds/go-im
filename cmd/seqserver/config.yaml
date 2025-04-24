@@ -3,7 +3,7 @@ server:
   debug: true
 
 redis:
-  addr: 192.168.56.133:6379
+  addr: 192.168.0.101:6379
 
 jwt:
   key: "123456"
@@ -11,7 +11,7 @@ jwt:
 
 trace:
   name: seqserver
-  endpoint: http://192.168.56.133:14268/api/traces
+  endpoint: http://192.168.0.101:14268/api/traces
   sampler:
   enable: false
 

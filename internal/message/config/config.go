@@ -6,6 +6,7 @@ import (
 	"go-im/internal/pkg/etcd"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mkafka"
+	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
 	"os"
@@ -53,13 +54,14 @@ func (g GrpcClient) ParseAddr() string {
 }
 
 type Config struct {
-	Server     ServerConfig  `json:"server" yaml:"server"`
-	Mysql      db.Config     `json:"mysql" yaml:"mysql"`
-	Redis      redis.Config  `json:"redis" yaml:"redis"`
-	Kafka      mkafka.Config `json:"kafka" yaml:"kafka"`
-	Log        log.Config    `json:"log" yaml:"log"`
-	Trace      mtrace.Config `json:"trace" yaml:"trace"`
-	UserClient GrpcClient    `json:"user_client" yaml:"user_client"`
+	Server     ServerConfig       `json:"server" yaml:"server"`
+	Mysql      db.Config          `json:"mysql" yaml:"mysql"`
+	Redis      redis.Config       `json:"redis" yaml:"redis"`
+	Kafka      mkafka.Config      `json:"kafka" yaml:"kafka"`
+	Log        log.Config         `json:"log" yaml:"log"`
+	Trace      mtrace.Config      `json:"trace" yaml:"trace"`
+	UserClient GrpcClient         `json:"user_client" yaml:"user_client"`
+	Prometheus mprometheus.Config `json:"prometheus" yaml:"prometheus"`
 }
 
 func ParseConfig(file string) *Config {

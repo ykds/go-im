@@ -23,7 +23,7 @@ func NewUserSessionRepository(db *db.DB) *UserSessionRepository {
 
 func (u *UserSessionRepository) Delete(ctx context.Context, id int64) error {
 	err := u.db.Wrap(ctx, "Delete", func(tx *gorm.DB) *gorm.DB {
-		return u.db.Delete(&model.UserSession{}, "id=?", id)
+		return tx.Delete(&model.UserSession{}, "id=?", id)
 	})
 	if err != nil {
 		return errors.Wrap(err, "Delete")
@@ -34,7 +34,7 @@ func (u *UserSessionRepository) Delete(ctx context.Context, id int64) error {
 func (u *UserSessionRepository) GetUserSession(ctx context.Context, userId int64, to int64) (*model.UserSession, error) {
 	var resp *model.UserSession
 	err := u.db.Wrap(ctx, "GetUserSession", func(tx *gorm.DB) *gorm.DB {
-		return u.db.First(&resp, "user_id=? AND to_id=?", userId, to)
+		return tx.First(&resp, "user_id=? AND to_id=?", userId, to)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "GetUserSession")
@@ -45,7 +45,7 @@ func (u *UserSessionRepository) GetUserSession(ctx context.Context, userId int64
 func (u *UserSessionRepository) ListUserSession(ctx context.Context, userId int64) ([]*model.UserSession, error) {
 	var resp []*model.UserSession
 	err := u.db.Wrap(ctx, "ListUserSession", func(tx *gorm.DB) *gorm.DB {
-		return u.db.Find(&resp, "user_id=?", userId)
+		return tx.Find(&resp, "user_id=?", userId)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "GetUserSession")
@@ -55,7 +55,7 @@ func (u *UserSessionRepository) ListUserSession(ctx context.Context, userId int6
 
 func (u *UserSessionRepository) UpdateSessionSeq(ctx context.Context, id int64, seq int64) error {
 	err := u.db.Wrap(ctx, "UpdateSessionSeq", func(tx *gorm.DB) *gorm.DB {
-		return u.db.Model(&model.UserSession{}).Where("id=? AND seq <?", id, seq).Update("seq=?", seq)
+		return tx.Model(&model.UserSession{}).Where("id=? AND seq <?", id, seq).Update("seq=?", seq)
 	})
 	if err != nil {
 		return errors.Wrap(err, "UpdateSessionSeq")

@@ -30,7 +30,7 @@ func NewGroupApplyRepository(db *db.DB) *GroupApplyRepository {
 func (g *GroupApplyRepository) FindOne(ctx context.Context, id int64) (*model.GroupApply, error) {
 	var groupApply *model.GroupApply
 	err := g.db.Wrap(ctx, "FindOne", func(tx *gorm.DB) *gorm.DB {
-		return g.db.First(&groupApply, "id=?", id)
+		return tx.First(&groupApply, "id=?", id)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "FindOne")
@@ -40,7 +40,7 @@ func (g *GroupApplyRepository) FindOne(ctx context.Context, id int64) (*model.Gr
 
 func (g *GroupApplyRepository) Insert(ctx context.Context, data *model.GroupApply) (int64, error) {
 	err := g.db.Wrap(ctx, "Insert", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Create(&data)
+		return tx.Create(&data)
 	})
 	if err != nil {
 		return 0, errors.Wrap(err, "Insert")
@@ -51,7 +51,7 @@ func (g *GroupApplyRepository) Insert(ctx context.Context, data *model.GroupAppl
 func (g *GroupApplyRepository) ListApplyByGroupId(ctx context.Context, groupId []int64) ([]*model.GroupApply, error) {
 	result := make([]*model.GroupApply, 0)
 	err := g.db.Wrap(ctx, "ListApplyByGroupId", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Find(&result, "group_id IN ? AND status=?", groupId, GroupApplyWaitStatus)
+		return tx.Find(&result, "group_id IN ? AND status=?", groupId, GroupApplyWaitStatus)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "ListApplyByGroupId")
@@ -62,7 +62,7 @@ func (g *GroupApplyRepository) ListApplyByGroupId(ctx context.Context, groupId [
 func (g *GroupApplyRepository) HandleApply(ctx context.Context, applyId int64, status string) error {
 	if status == GroupApplyRejectStatus {
 		err := g.db.Wrap(ctx, "HandleApply", func(tx *gorm.DB) *gorm.DB {
-			return g.db.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status=?", status)
+			return tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status=?", status)
 		})
 		if err != nil {
 			return errors.Wrap(err, "HandleApply")
@@ -130,7 +130,7 @@ func (g *GroupApplyRepository) HandleApply(ctx context.Context, applyId int64, s
 func (g *GroupApplyRepository) ApplyExists(ctx context.Context, groupId int64, userId int64) (bool, error) {
 	var resp *model.GroupApply
 	err := g.db.Wrap(ctx, "ApplyExists", func(tx *gorm.DB) *gorm.DB {
-		return g.db.First(&resp, "group_id=? AND user_id=?", groupId, userId)
+		return tx.First(&resp, "group_id=? AND user_id=?", groupId, userId)
 	})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

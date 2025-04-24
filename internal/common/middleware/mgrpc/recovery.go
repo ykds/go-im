@@ -6,6 +6,8 @@ import (
 	"runtime/debug"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func UnaryServerRecovery() grpc.UnaryServerInterceptor {
@@ -21,11 +23,14 @@ func UnaryServerRecovery() grpc.UnaryServerInterceptor {
 
 func StreamServerRecovery() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		var err error
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("panic: %v, stack: %v", r, string(debug.Stack()))
+				err = status.Error(codes.Internal, "panic")
 			}
 		}()
-		return handler(srv, ss)
+		err = handler(srv, ss)
+		return err
 	}
 }

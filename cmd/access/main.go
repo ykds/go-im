@@ -14,6 +14,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 )
 
@@ -42,6 +43,9 @@ func main() {
 	engine.Use(gin.RecoveryWithWriter(log.Output()))
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
+	}
+	if c.Server.Debug {
+		pprof.Register(engine)
 	}
 	engine.GET("/ws", mhttp.AuthMiddleware(), wsServer.Handler)
 	svc := http.Server{

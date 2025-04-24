@@ -7,10 +7,8 @@ import (
 	"go-im/internal/common/response"
 	"go-im/internal/gateway/server"
 	"go-im/internal/gateway/types"
-	"go-im/internal/pkg/log"
 
 	"github.com/gin-gonic/gin"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type UserApi struct {
@@ -52,8 +50,6 @@ func (api *UserApi) Login(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	a := trace.SpanContextFromContext(c.Request.Context())
-	log.Infof("trace id: %s, span id: %s", a.TraceID().String(), a.SpanID().String())
 	rpcResp, err := api.s.UserRpc.Login(c.Request.Context(), &user.LoginReq{
 		Phone:    req.Phone,
 		Password: req.Password,

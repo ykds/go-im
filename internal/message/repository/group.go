@@ -34,7 +34,7 @@ func (g *GroupRepository) FindOne(ctx context.Context, id int64) (*model.Group, 
 func (g *GroupRepository) FindOneByGroupNo(ctx context.Context, groupNo int64) (*model.Group, error) {
 	var resp *model.Group
 	err := g.db.Wrap(ctx, "FindOneByGroupNo", func(tx *gorm.DB) *gorm.DB {
-		return g.db.First(&resp, "group_no=?", groupNo)
+		return tx.First(&resp, "group_no=?", groupNo)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "FindOne")
@@ -44,7 +44,7 @@ func (g *GroupRepository) FindOneByGroupNo(ctx context.Context, groupNo int64) (
 
 func (g *GroupRepository) Update(ctx context.Context, newData *model.Group) error {
 	err := g.db.Wrap(ctx, "Update", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Updates(newData)
+		return tx.Updates(newData)
 	})
 	if err != nil {
 		return errors.Wrap(err, "Update")
@@ -55,7 +55,7 @@ func (g *GroupRepository) Update(ctx context.Context, newData *model.Group) erro
 func (g *GroupRepository) ListGroupByOwnerId(ctx context.Context, ownerId int64) ([]*model.Group, error) {
 	var resp []*model.Group
 	err := g.db.Wrap(ctx, "ListGroupByOwnerId", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Find(&resp, "owner_id=?", ownerId)
+		return tx.Find(&resp, "owner_id=?", ownerId)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "ListGroupByOwnerId")
@@ -113,7 +113,7 @@ func (g *GroupRepository) CreateGroup(ctx context.Context, group *model.Group) (
 func (g *GroupRepository) ListGroupById(ctx context.Context, ids []int64) ([]*model.Group, error) {
 	var resp []*model.Group
 	err := g.db.Wrap(ctx, "ListGroupById", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Find(&resp, "id IN ?", ids)
+		return tx.Find(&resp, "id IN ?", ids)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "ListGroupById")
@@ -123,7 +123,7 @@ func (g *GroupRepository) ListGroupById(ctx context.Context, ids []int64) ([]*mo
 
 func (g *GroupRepository) UpdateGroup(ctx context.Context, id int64, group *model.Group) error {
 	err := g.db.Wrap(ctx, "UpdateGroup", func(tx *gorm.DB) *gorm.DB {
-		return g.db.Where("id=?", id).Updates(group)
+		return tx.Where("id=?", id).Updates(group)
 	})
 	if err != nil {
 		return errors.Wrap(err, "UpdateGroup")

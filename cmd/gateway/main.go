@@ -15,7 +15,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var cfg = flag.String("c", "./config.yaml", "")
@@ -29,17 +31,21 @@ func main() {
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
 
-	if c.Server.Debug {
-		gin.SetMode(gin.DebugMode)
-	} else {
-		gin.SetMode(gin.ReleaseMode)
-	}
 	engine := gin.New()
 	engine.Use(gin.Recovery(), gin.RecoveryWithWriter(log.Output()))
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
-		// engine.Use(otelgin.Middleware("go-test"))
 	}
+	if c.Server.Debug {
+		pprof.Register(engine)
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	if c.Prometheus.Enable {
+		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
+
 	api := engine.Group("/api")
 
 	s := server.NewServer(c)

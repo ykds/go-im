@@ -9,16 +9,20 @@ import (
 	"go-im/internal/pkg/etcd"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mkafka"
+	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
 	"go-im/internal/user/config"
 	"go-im/internal/user/server"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
@@ -49,6 +53,19 @@ func main() {
 	defer db.Close()
 	kafkaWriter := mkafka.NewProducer(c.Kafka)
 	defer kafkaWriter.Close()
+
+	if c.Prometheus.Enable {
+		mprometheus.GormPrometheus(&c.Prometheus, db.DB, "im")
+		prometheus.MustRegister(mprometheus.RedisPrometheus(&c.Prometheus, rdb, "go-im", "user"))
+		http.Handle("/metrics", promhttp.Handler())
+		go func() {
+			err := http.ListenAndServe(c.Prometheus.Listen, nil)
+			if err != nil {
+				panic(err)
+			}
+		}()
+	}
+
 	svc := server.NewServer(rdb, db, kafkaWriter)
 
 	grpcSvc := grpc.NewServer(

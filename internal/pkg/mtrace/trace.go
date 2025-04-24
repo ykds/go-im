@@ -64,7 +64,7 @@ func InitTelemetry(cfg Config) {
 
 func StartSpan(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	if !enable {
-		return ctx, nil
+		return ctx, trace.SpanFromContext(ctx)
 	}
 	tr := otel.Tracer(TraceName)
 	return tr.Start(ctx, name, opts...)

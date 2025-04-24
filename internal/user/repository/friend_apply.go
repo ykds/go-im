@@ -28,7 +28,7 @@ func NewFriendApplyRepository(db *db.DB) *FriendApplyRepository {
 
 func (f *FriendApplyRepository) Insert(ctx context.Context, data *model.FriendApply) (int64, error) {
 	err := f.db.Wrap(ctx, "Insert", func(tx *gorm.DB) *gorm.DB {
-		return f.db.Create(&data)
+		return tx.Create(&data)
 	})
 	if err != nil {
 		return 0, errors.Wrap(err, "Insert")
@@ -38,7 +38,7 @@ func (f *FriendApplyRepository) Insert(ctx context.Context, data *model.FriendAp
 
 func (f *FriendApplyRepository) UpdateFriendApply(ctx context.Context, id int64, status int) error {
 	err := f.db.Wrap(ctx, "UpdateFriendApply", func(tx *gorm.DB) *gorm.DB {
-		return f.db.Model(&model.FriendApply{}).Where("id=?", id).Update("status=?", status)
+		return tx.Model(&model.FriendApply{}).Where("id=?", id).Update("status=?", status)
 	})
 	if err != nil {
 		return errors.Wrap(err, "UpdateFriendApply")
@@ -49,7 +49,7 @@ func (f *FriendApplyRepository) UpdateFriendApply(ctx context.Context, id int64,
 func (f *FriendApplyRepository) ListFriendApply(ctx context.Context, userId int64) ([]*model.FriendApply, error) {
 	var friends []*model.FriendApply
 	err := f.db.Wrap(ctx, "ListFriendApply", func(tx *gorm.DB) *gorm.DB {
-		return f.db.Where("(user_id=? or friend_id=?) and status=1").Order("created_at desc").Find(friends)
+		return tx.Where("(user_id=? or friend_id=?) and status=1").Order("created_at desc").Find(friends)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "ListFriendApply")
@@ -60,7 +60,7 @@ func (f *FriendApplyRepository) ListFriendApply(ctx context.Context, userId int6
 func (f *FriendApplyRepository) GetFriendApply(ctx context.Context, id int64, userId int64) (*model.FriendApply, error) {
 	var friend *model.FriendApply
 	err := f.db.Wrap(ctx, "GetFriendApply", func(tx *gorm.DB) *gorm.DB {
-		return f.db.First(friend, "user_id=? and friend_id=?", id, userId)
+		return tx.First(friend, "user_id=? and friend_id=?", id, userId)
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "GetFriendApply")
@@ -111,7 +111,7 @@ func (f *FriendApplyRepository) AgreeAndAddFriend(ctx context.Context, applyId i
 func (f *FriendApplyRepository) FindOne(ctx context.Context, id int64) (*model.FriendApply, error) {
 	var apply *model.FriendApply
 	err := f.db.Wrap(ctx, "FindOne", func(tx *gorm.DB) *gorm.DB {
-		return f.db.First(&apply, "id=?")
+		return tx.First(&apply, "id=?")
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "FindOne")
