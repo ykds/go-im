@@ -1,0 +1,162 @@
+syntax = "proto3";
+
+package user;
+option go_package="./user";
+
+message RegisterReq {
+  string phone = 1;
+  string username = 2;
+  string password = 3;
+  string confirm_password = 4;
+  string avatar = 5;
+  string gender = 6;
+}
+
+message RegisterResp {
+}
+
+message LoginReq {
+  string phone = 1;
+  string password = 2;
+}
+
+message LoginResp {
+  string token = 1;
+}
+
+message UserInfoReq {
+  int64 user_id = 1;
+}
+
+message UserInfoResp {
+  string phone = 1;
+  string username = 2;
+  string avatar = 3;
+  int64 user_id = 4;
+  string gender = 5;
+}
+
+message UpdateInfoReq {
+  int64 user_id = 1;
+  string username = 2;
+  string avatar = 3;
+}
+
+message UpdateInfoResp {
+}
+
+message HeartBeatReq {
+  int64 user_id = 1;
+}
+
+message HeartBeatResp {}
+
+message ConnectReq {
+  int64 user_id = 1;
+}
+
+message ConnectResp {}
+
+message DisConnectReq {
+  int64 user_id = 1;
+}
+
+message DisConnectResp {}
+
+
+message FriendApplyReq {
+	int64 user_id = 1;
+	int64 friend_id = 2;
+}
+
+message FriendApplyResp {}
+
+message HandleApplyReq {
+	int64 apply_id = 1;
+	int32 status = 2;
+	int64 user_id = 3;
+}
+
+message HandleApplyResp {}
+
+message ListApplyReq {
+	int64 user_id = 1;
+}
+
+message ApplyInfo {
+	int64 apply_id = 1;
+	int64 friend_id = 2;
+	string username = 3;
+	string avatar = 4;
+	int32 status = 5;
+}
+
+message ListApplyResp {
+	repeated ApplyInfo list = 1;
+}
+
+message ListFriendsReq {
+	int64 user_id = 1;
+}
+
+message FriendInfo {
+	int64 user_id = 1;
+	string username = 2;
+	string avatar = 3;
+	string phone = 4;
+	string gender = 5;
+}
+
+message ListFriendsResp {
+	repeated FriendInfo list = 1;
+}
+
+message DeleteFriendReq {
+	int64 user_id = 1;
+	int64 friend_id = 2;
+}
+
+message DeleteFriendResp {}
+
+message IsFriendReq {
+	int64 user_id = 1;
+	int64 friend_id = 2;
+}
+
+message IsFriendResp {
+	bool is_friend = 1;
+}
+
+message SearchUserReq {
+  string phone = 1;
+}
+
+message SearchUserInfo {
+  int64 id = 1;
+  string username = 2;
+  string phone = 3;
+  string gender = 4;
+  string avatar = 5;
+}
+
+message SearchUserResp {
+  repeated SearchUserInfo list = 1;
+}
+
+service User {
+  rpc Register(RegisterReq) returns(RegisterResp);
+  rpc Login(LoginReq) returns(LoginResp);
+  rpc UserInfo(UserInfoReq) returns(UserInfoResp);
+  rpc UpdateInfo(UpdateInfoReq) returns(UpdateInfoResp);
+  rpc Heartbeat(HeartBeatReq) returns(HeartBeatResp);
+  rpc Connect(ConnectReq) returns(ConnectResp);
+  rpc DisConnect(DisConnectReq) returns(DisConnectResp);
+
+  rpc FriendApply(FriendApplyReq) returns(FriendApplyResp);
+  rpc HandleApply(HandleApplyReq) returns(HandleApplyResp);
+  rpc ListApply(ListApplyReq) returns(ListApplyResp);
+  rpc ListFriends(ListFriendsReq) returns(ListFriendsResp);
+  rpc DeleteFriend(DeleteFriendReq) returns(DeleteFriendResp);
+  rpc IsFriend(IsFriendReq) returns(IsFriendResp);
+  rpc SearchUser(SearchUserReq) returns (SearchUserResp);
+}

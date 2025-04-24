@@ -1,0 +1,72 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"go-im/internal/access/config"
+	"go-im/internal/access/server"
+	"go-im/internal/common/jwt"
+	"go-im/internal/common/middleware/mhttp"
+	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mtrace"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/gin-gonic/gin"
+)
+
+var cfg = flag.String("c", "./config.yaml", "")
+
+func main() {
+	flag.Parse()
+
+	c := config.ParseConfig(*cfg)
+
+	log.InitLogger(c.Log)
+	jwt.Init(c.JWT)
+	mtrace.InitTelemetry(c.Trace)
+
+	wsServer := server.NewServer(c)
+
+	if c.Addr == "" {
+		c.Addr = "0.0.0.0:8002"
+	}
+	if c.Debug {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	engine := gin.New()
+	engine.Use(gin.RecoveryWithWriter(log.Output()))
+	if c.Trace.Enable {
+		engine.Use(mhttp.Trace())
+	}
+	engine.GET("/ws", mhttp.AuthMiddleware(), wsServer.Handler)
+	svc := http.Server{
+		Addr:    c.Addr,
+		Handler: engine,
+	}
+
+	done := make(chan struct{})
+	signals := make(chan os.Signal, 1)
+
+	go func() {
+		svc.ListenAndServe()
+		done <- struct{}{}
+	}()
+
+	log.Infof("access server listening on %s", c.Addr)
+
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-signals:
+	case <-done:
+	}
+
+	log.Infof("access server shutdown.")
+
+	svc.Shutdown(context.TODO())
+	wsServer.Stop()
+}

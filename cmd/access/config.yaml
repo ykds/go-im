@@ -1,0 +1,49 @@
+addr: 0.0.0.0:8002
+debug: true
+
+redis:
+  addr: 192.168.56.133:6379
+
+jwt:
+  key: "123456"
+  expire:
+
+trace:
+  name: user
+  endpoint:
+  sampler:
+  enable: true
+
+log:
+  level: info
+  target:
+    - 
+      type: console
+
+user_client:
+  type: etcd
+  etcd:
+    key: user.rpc
+    addr: 192.168.56.133:2379
+
+message_client:
+  type: etcd
+  etcd:
+    key: message.rpc
+    addr: 192.168.56.133:2379
+
+kafka:
+  brokers:
+  - "192.168.56.133:9192"
+  - "192.168.56.133:9292"
+  - "192.168.56.133:9392"
+  consumer_group:
+    - 
+      topic: "message"
+      group: "access-message"
+    - 
+      topic: "apply-friend-notify"
+      group: "access-friend"
+    - 
+      topic: "group-apply-notify"
+      group: "access-group"

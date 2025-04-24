@@ -1,0 +1,42 @@
+addr: 0.0.0.0:8000
+etcd:
+  key: user.rpc
+  addr: 192.168.56.133:2379
+
+mysql:
+  driver: mysql
+  host: 192.168.56.133
+  port: 3306
+  user: root
+  password: online123
+  db_name: im
+  timezone: Asia/Shanghai
+  max_open_conns: 10
+  max_idle_conns: 5
+  conn_max_life_time: 60000
+
+redis:
+  addr: 192.168.56.133:6379
+
+trace:
+  name: user
+  endpoint:
+  sampler:
+  enable: true
+
+log:
+  level: info
+  target:
+    - 
+      type: console
+
+jwt:
+  key: "123456"
+  expire:
+
+kafka:
+  brokers:
+    - "192.168.56.133:9192"
+    - "192.168.56.133:9292"
+    - "192.168.56.133:9392"
+  topic: "apply-friend-notify"

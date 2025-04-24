@@ -1,0 +1,93 @@
+package main
+
+import (
+	"flag"
+	"go-im/api/user"
+	"go-im/internal/common/jwt"
+	"go-im/internal/common/middleware/mgrpc"
+	"go-im/internal/pkg/db"
+	"go-im/internal/pkg/etcd"
+	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mkafka"
+	"go-im/internal/pkg/mtrace"
+	"go-im/internal/pkg/redis"
+	"go-im/internal/user/config"
+	"go-im/internal/user/server"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+)
+
+var cfg = flag.String("c", "./config.yaml", "")
+
+func main() {
+	flag.Parse()
+
+	c := config.ParseConfig(*cfg)
+
+	log.InitLogger(c.Log)
+	jwt.Init(c.JWT)
+	mtrace.InitTelemetry(c.Trace)
+	cli := etcd.NewClient(c.Etcd)
+	if cli != nil {
+		err := cli.Register(c.Etcd.Key, c.Etcd.Addr)
+		if err != nil {
+			panic(err)
+		}
+		defer cli.Close()
+		defer cli.UnRegister(c.Etcd.Key)
+	}
+
+	rdb := redis.NewRedis(c.Redis)
+	defer rdb.Close()
+	db := db.NewDB(c.Mysql)
+	defer db.Close()
+	kafkaWriter := mkafka.NewProducer(c.Kafka)
+	defer kafkaWriter.Close()
+	svc := server.NewServer(rdb, db, kafkaWriter)
+
+	grpcSvc := grpc.NewServer(
+		grpc.KeepaliveParams(
+			keepalive.ServerParameters{
+				MaxConnectionIdle: 5 * time.Minute,
+				Time:              10 * time.Second,
+				Timeout:           2 * time.Second,
+			}),
+		grpc.ChainUnaryInterceptor(mgrpc.UnaryServerTrace()),
+		grpc.ChainStreamInterceptor(mgrpc.StreamServerTrace()),
+	)
+	user.RegisterUserServer(grpcSvc, svc)
+
+	if c.Addr == "" {
+		c.Addr = "0.0.0.0:8000"
+	}
+	listen, err := net.Listen("tcp", c.Addr)
+	if err != nil {
+		panic(err)
+	}
+
+	done := make(chan struct{})
+	signals := make(chan os.Signal, 1)
+
+	go func() {
+		grpcSvc.Serve(listen)
+		done <- struct{}{}
+	}()
+
+	log.Infof("user rpc server listening on %s", c.Addr)
+
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-signals:
+	case <-done:
+	}
+
+	log.Infof("user rpc server shutdown.")
+
+	grpcSvc.Stop()
+}

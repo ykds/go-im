@@ -1,0 +1,21 @@
+addr: 0.0.0.0:8004
+debug: true
+
+redis:
+  addr: 192.168.56.133:6379
+
+jwt:
+  key: "123456"
+  expire:
+
+trace:
+  name: user
+  endpoint:
+  sampler:
+  enable: true
+
+log:
+  level: info
+  target:
+    - 
+      type: console

@@ -1,0 +1,246 @@
+syntax = "proto3";
+
+package message;
+option go_package="./message";
+
+message ListSessionReq {
+  int64 user_id = 1;
+}
+
+message SessionInfo {
+  string kind = 1;
+  int64 session_id = 2;
+  
+  optional int64 group_id = 3;
+  optional string group_name = 4;
+  optional string group_avatar = 5;
+
+  optional int64 friend_id = 6;
+  optional string friend_name = 7;
+  optional string friend_avatar = 8;
+
+  int64 seq = 9;
+}
+
+message ListSessionResp {
+  repeated SessionInfo list = 1;
+}
+
+message SendMessageReq {
+  int64 user_id = 1;
+  int64 to_id = 2;
+  int64 seq = 3;
+  string kind = 4;
+  string message = 5;
+}
+
+message SendMessageResp {}
+
+message AckMessageReq {
+  int64 user_id = 1;
+  int64 session_id = 2;
+  int64 seq = 3;
+  int64 msg_id = 4;
+}
+
+message AckMessageResp {}
+
+message DeleteUserSessionReq {
+  int64 session_id = 1;
+}
+
+message DeleteUserSessionResp {
+}
+
+
+message ListUnReadMessageReq {
+  int64 user_id = 1;
+  int64 from_id = 2;
+  int64 group_id = 3;
+  int64 seq = 4;
+  string kind = 5;
+}
+
+message MessageInfo {
+  int64 id = 1;
+  string kind = 2;
+  string content = 3;
+  int64 seq = 4;
+  int64 from_id = 5;
+}
+
+message ListUnReadMessageResp {
+  repeated MessageInfo list = 1;
+}
+
+message CreateGroupReq {
+  int64 user_id = 1;
+  string name = 2;
+  string avatar = 3;
+}
+
+message CreateGroupResq {
+  int64 id = 1;
+  int64 group_no = 2;
+  string name = 3;
+  string avatar = 4;
+  
+}
+
+message ListGroupReq {
+  int64 userId = 1;
+}
+
+message GroupMember {
+  int64 id = 1;
+  string name = 2;
+  string avatar = 3;
+  int64 session_id = 4;
+
+}
+
+message GroupInfo {
+  int64 id = 1;
+  int64 group_no = 2;
+  string name = 3;
+  string avatar = 4;
+  repeated GroupMember members = 5;
+}
+
+message ListGroupResp {
+  repeated GroupInfo groups = 1;
+}
+
+message DismissGroupReq {
+  int64 group_id = 1;
+  int64 user_id = 2;
+}
+
+message DismissGroupResp{}
+
+message InviteMemberReq {
+  int64 group_id = 1;
+  int64 user_id = 2;
+  int64 invited_id = 3;
+}
+
+message InviteMemberResp{}
+
+message MoveOutMemberReq{
+  int64 group_id = 1;
+  int64 user_id = 2;
+}
+
+message MoveOutMemberResp{}
+
+message ApplyInGroupReq {
+  int64 group_no = 1;
+  int64 user_id = 2;
+}
+
+message ApplyInGroupResp {}
+
+message HandleGroupApplyReq {
+  int64 apply_id = 1;
+  int64 user_id = 2;
+  string status = 3;
+}
+
+message HandleGroupApplyResp{}
+
+message ExitGroupReq {
+  int64 group_id = 1;
+  int64 user_id = 2;
+}
+
+message ExitGroupResp{}
+
+message UpdateGroupInfoReq {
+  int64 user_id = 1;
+  int64 group_id = 2;
+  string name = 3;
+  string avatar = 4;
+}
+
+message UpdateGroupInfoResp{}
+
+message ListGroupMemberReq {
+  int64 group_id = 1;
+  int64 user_id = 2;
+}
+
+message ListGroupMemberResp {
+  repeated GroupMember members = 5;
+}
+
+message SearchGroupReq {
+  int64 group_no = 1;
+}
+
+message SearchGroupInfo {
+  int64 id = 1;
+  int64 group_no = 2;
+  string name = 3;
+  string avatar = 4;
+  int32 member_count = 5;
+  int64 owner_id = 6;
+}
+
+message SearchGroupResp {
+  repeated SearchGroupInfo infos = 1;
+}
+
+message ListGroupApplyReq {
+  int64 user_id = 1;
+}
+
+message UserApply {
+  int64 apply_id = 1;
+  string name = 2;
+  string avatar = 3;
+}
+
+message ApplyGroup {
+  string name = 1;
+  string avatar = 2;
+  repeated UserApply apply = 3;
+}
+
+message ListGroupApplyResp {
+  repeated ApplyGroup list = 1;
+}
+
+
+message CreateSessionReq {
+  int64 user_id = 1;
+  int64 friend_id = 2;
+}
+
+message CreateSessionResp {
+  int64 session_id = 1;
+}
+
+
+
+service Message {
+  rpc ListSession(ListSessionReq) returns(ListSessionResp);
+  rpc SendMessage(SendMessageReq) returns(SendMessageResp);
+  rpc AckMessage(AckMessageReq) returns(AckMessageResp);
+  rpc DeleteUserSession(DeleteUserSessionReq) returns(DeleteUserSessionResp);
+  rpc ListUnReadMessage(ListUnReadMessageReq) returns(ListUnReadMessageResp);
+
+  rpc CreateGroup(CreateGroupReq) returns (CreateGroupResq);
+  rpc ListGroup(ListGroupReq) returns (ListGroupResp);
+  rpc DismissGroup(DismissGroupReq) returns (DismissGroupResp);
+  rpc InviteMember(InviteMemberReq) returns (InviteMemberResp);
+  rpc MoveOutMember(MoveOutMemberReq) returns (MoveOutMemberResp);
+  rpc ApplyInGroup(ApplyInGroupReq) returns (ApplyInGroupResp);
+  rpc HandleGroupApply(HandleGroupApplyReq)returns(HandleGroupApplyResp);
+  rpc ExitGroup(ExitGroupReq) returns (ExitGroupResp);
+  rpc UpdateGroupInfo(UpdateGroupInfoReq) returns (UpdateGroupInfoResp);
+  rpc ListGroupMember(ListGroupMemberReq) returns (ListGroupMemberResp); 
+  rpc SearchGroup(SearchGroupReq) returns (SearchGroupResp); 
+  rpc ListGroupApply(ListGroupApplyReq) returns (ListGroupApplyResp);
+  rpc CreateSession(CreateSessionReq) returns (CreateSessionResp);
+}
+
