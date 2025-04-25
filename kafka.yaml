@@ -76,7 +76,7 @@ services:
     container_name: kafka-ui
     restart: always
     ports:
-      - 8090:8080
+      - 8080:8080
     volumes:
       - /etc/localtime:/etc/localtime
     environment:

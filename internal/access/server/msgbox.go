@@ -76,16 +76,21 @@ func (mb *MsgBox) Append(msg *types.Message, kind string, unread int) {
 	k := key(kind, msg.SessionId)
 	index := hash(k)
 	i := index % len(mb.box)
-	mb.rwm.Lock()
+	mb.rwm.RLock()
 	btk := mb.box[i]
 	if btk == nil {
+		mb.rwm.RUnlock()
+
+		mb.rwm.Lock()
 		btk = &bucket{
 			entries: make(map[string]*msglist.MsgList, 1000),
 			rwmutex: &sync.RWMutex{},
 		}
 		mb.box[i] = btk
+		mb.rwm.Unlock()
+	} else {
+		mb.rwm.RUnlock()
 	}
-	mb.rwm.Unlock()
 	btk.Insert(k, msg, unread)
 }
 
