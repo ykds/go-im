@@ -62,7 +62,7 @@ func (g *GroupApplyRepository) ListApplyByGroupId(ctx context.Context, groupId [
 func (g *GroupApplyRepository) HandleApply(ctx context.Context, applyId int64, status string) error {
 	if status == GroupApplyRejectStatus {
 		err := g.db.Wrap(ctx, "HandleApply", func(tx *gorm.DB) *gorm.DB {
-			return tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status=?", status)
+			return tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status", status)
 		})
 		if err != nil {
 			return errors.Wrap(err, "HandleApply")
@@ -85,9 +85,9 @@ func (g *GroupApplyRepository) HandleApply(ctx context.Context, applyId int64, s
 			return stmt.Error
 		}
 		err := g.db.Transaction(func(tx *gorm.DB) error {
-			stmt := tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status=?", status)
+			stmt := tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status", status)
 			sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
-				return tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status=?", status)
+				return tx.Model(&model.GroupApply{}).Where("id=?", applyId).Update("status", status)
 			}))
 			if stmt.Error != nil {
 				return stmt.Error

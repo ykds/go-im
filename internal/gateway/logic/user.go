@@ -80,7 +80,7 @@ func (api *UserApi) Register(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.UserRpc.Register(c, &user.RegisterReq{
+	_, err = api.s.UserRpc.Register(c.Request.Context(), &user.RegisterReq{
 		Phone:    req.Phone,
 		Username: req.Username,
 		Password: req.Password,
@@ -109,7 +109,7 @@ func (api *UserApi) SearchUser(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	rpcResp, err := api.s.UserRpc.SearchUser(c, &user.SearchUserReq{
+	rpcResp, err := api.s.UserRpc.SearchUser(c.Request.Context(), &user.SearchUserReq{
 		Phone: req.Phone,
 	})
 	if err != nil {
@@ -144,7 +144,7 @@ func (api *UserApi) UpdateInfo(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.UserRpc.UpdateInfo(c, &user.UpdateInfoReq{UserId: c.GetInt64("user_id"), Username: req.Username})
+	_, err = api.s.UserRpc.UpdateInfo(c.Request.Context(), &user.UpdateInfoReq{UserId: c.GetInt64("user_id"), Username: req.Username})
 	if err != nil {
 		err = errcode.FromRpcError(err)
 	}
@@ -162,7 +162,7 @@ func (api *UserApi) UserInfo(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	rpcResp, err := api.s.UserRpc.UserInfo(c, &user.UserInfoReq{UserId: c.GetInt64("user_id")})
+	rpcResp, err := api.s.UserRpc.UserInfo(c.Request.Context(), &user.UserInfoReq{UserId: c.GetInt64("user_id")})
 	if err != nil {
 		err = errcode.FromRpcError(err)
 		return

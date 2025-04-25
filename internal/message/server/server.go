@@ -622,7 +622,9 @@ func (s *Server) createSessionIfNotExists(ctx context.Context, userId, friendId 
 		return cmd.Val(), cmd.String(), cmd.Err()
 	})
 	if err != nil {
-		return 0, err
+		if err.Error() != "redis: nil" {
+			return 0, err
+		}
 	}
 	ex1 := ret.(string)
 	if ex1 == "" {
@@ -653,7 +655,9 @@ func (s *Server) createSessionIfNotExists(ctx context.Context, userId, friendId 
 		return cmd.Val(), cmd.String(), cmd.Err()
 	})
 	if err != nil {
-		return 0, err
+		if err.Error() != "redis: nil" {
+			return 0, err
+		}
 	}
 	ex2 := ret.(string)
 	if ex2 == "" {

@@ -151,6 +151,11 @@ func (s *Server) UpdateInfo(ctx context.Context, in *user.UpdateInfoReq) (*user.
 	if in.Username != "" {
 		usr.Username = in.Username
 	}
+	err = s.userRepository.Update(ctx, usr)
+	if err != nil {
+		log.Errorf("err: %v", err)
+		return nil, errcode.ToRpcError(err)
+	}
 	return &user.UpdateInfoResp{}, nil
 }
 

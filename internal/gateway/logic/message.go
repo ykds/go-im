@@ -46,7 +46,7 @@ func (api *MessageApi) AckMessage(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.AckMessage(c, &message.AckMessageReq{
+	_, err = api.s.MessageRpc.AckMessage(c.Request.Context(), &message.AckMessageReq{
 		UserId:    c.GetInt64("user_id"),
 		SessionId: req.SessionId,
 		Seq:       req.Seq,
@@ -73,7 +73,7 @@ func (api *MessageApi) CreateSession(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	rpcResp, err := api.s.MessageRpc.CreateSession(c, &message.CreateSessionReq{
+	rpcResp, err := api.s.MessageRpc.CreateSession(c.Request.Context(), &message.CreateSessionReq{
 		UserId:   c.GetInt64("user_id"),
 		FriendId: req.FriendId,
 	})
@@ -98,7 +98,7 @@ func (api *MessageApi) ListSession(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	rpcResp, err := api.s.MessageRpc.ListSession(c, &message.ListSessionReq{
+	rpcResp, err := api.s.MessageRpc.ListSession(c.Request.Context(), &message.ListSessionReq{
 		UserId: c.GetInt64("user_id"),
 	})
 	if err != nil {
@@ -151,7 +151,7 @@ func (api *MessageApi) SendMessage(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.SendMessage(c, &message.SendMessageReq{
+	_, err = api.s.MessageRpc.SendMessage(c.Request.Context(), &message.SendMessageReq{
 		UserId:  c.GetInt64("user_id"),
 		Kind:    req.Kind,
 		ToId:    req.ToId,
@@ -180,7 +180,7 @@ func (api *MessageApi) UnreadMessage(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	respRpc, err := api.s.MessageRpc.ListUnReadMessage(c, &message.ListUnReadMessageReq{
+	respRpc, err := api.s.MessageRpc.ListUnReadMessage(c.Request.Context(), &message.ListUnReadMessageReq{
 		UserId:  c.GetInt64("user_id"),
 		GroupId: req.GroupId,
 		FromId:  req.FromId,

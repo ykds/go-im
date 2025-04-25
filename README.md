@@ -86,23 +86,18 @@ api服务、用户服务、消息服务之间通过 grpc 来实现通讯。
 Linux 环境：
 - Ubuntu 22.04
 - MySQL 8.0
-- Docker 28.0.4
-- Docker Compose 2.34.0
 - Go 1.23.4
 ```
 
 ### 一. 创建数据表
 > CREATE DATABASE goim;
 > 
-> mysql goim < goim.sql 
->
-> 或
->
-> mysqldump -uroot -p goim < goim.sql
+> mysql -uroot -p goim < goim.sql 
+
 
 ### 二. Docker 运行 `Kafka、Redis、Jaeger、Etcd`
 #### 运行 Kafka
-修改`.env`中`HOST`为主机提供外部访问IP地址
+修改`.env`中`HOST`为主机IP地址，如果是云服务器，则是公网IP地址。
 
 如虚拟机IP：
 > HOST=192.168.x.x
@@ -204,7 +199,7 @@ output {
 > 
 > Elasticsearch: 
 >
-> http://192.168.0.103:9200/
+> http://localhost:9200/
 > 
 > Kibana:
 >

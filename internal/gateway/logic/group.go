@@ -53,7 +53,7 @@ func (api *GroupApi) ApplyInGroup(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.ApplyInGroup(c, &message.ApplyInGroupReq{
+	_, err = api.s.MessageRpc.ApplyInGroup(c.Request.Context(), &message.ApplyInGroupReq{
 		GroupNo: req.GroupNo,
 		UserId:  c.GetInt64("user_id"),
 	})
@@ -79,7 +79,7 @@ func (api *GroupApi) CreateGroup(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	rpcResp, err := api.s.MessageRpc.CreateGroup(c, &message.CreateGroupReq{
+	rpcResp, err := api.s.MessageRpc.CreateGroup(c.Request.Context(), &message.CreateGroupReq{
 		UserId: c.GetInt64("user_id"),
 		Name:   req.Name,
 		Avatar: req.Avatar,
@@ -111,7 +111,7 @@ func (api *GroupApi) DismissGroup(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.DismissGroup(c, &message.DismissGroupReq{
+	_, err = api.s.MessageRpc.DismissGroup(c.Request.Context(), &message.DismissGroupReq{
 		UserId:  c.GetInt64("user_id"),
 		GroupId: req.GroupId,
 	})
@@ -136,7 +136,7 @@ func (api *GroupApi) ExitGroup(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.ExitGroup(c, &message.ExitGroupReq{
+	_, err = api.s.MessageRpc.ExitGroup(c.Request.Context(), &message.ExitGroupReq{
 		GroupId: req.GroupId,
 		UserId:  c.GetInt64("user_id"),
 	})
@@ -161,7 +161,7 @@ func (api *GroupApi) HandlerGroupApply(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.HandleGroupApply(c, &message.HandleGroupApplyReq{
+	_, err = api.s.MessageRpc.HandleGroupApply(c.Request.Context(), &message.HandleGroupApplyReq{
 		ApplyId: req.ApplyId,
 		UserId:  c.GetInt64("user_id"),
 		Status:  req.Status,
@@ -187,7 +187,7 @@ func (api *GroupApi) InviteMember(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.InviteMember(c, &message.InviteMemberReq{
+	_, err = api.s.MessageRpc.InviteMember(c.Request.Context(), &message.InviteMemberReq{
 		GroupId:   req.GroupId,
 		InvitedId: req.InvitedId,
 		UserId:    c.GetInt64("user_id"),
@@ -209,7 +209,7 @@ func (api *GroupApi) ListGroupApply(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	rpcResp, err := api.s.MessageRpc.ListGroupApply(c, &message.ListGroupApplyReq{
+	rpcResp, err := api.s.MessageRpc.ListGroupApply(c.Request.Context(), &message.ListGroupApplyReq{
 		UserId: c.GetInt64("user_id"),
 	})
 	if err != nil {
@@ -245,7 +245,7 @@ func (api *GroupApi) ListGroup(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	rpcResp, err := api.s.MessageRpc.ListGroup(c, &message.ListGroupReq{
+	rpcResp, err := api.s.MessageRpc.ListGroup(c.Request.Context(), &message.ListGroupReq{
 		UserId: c.GetInt64("user_id"),
 	})
 	if err != nil {
@@ -292,7 +292,7 @@ func (api *GroupApi) ListGroupMember(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	rpcResp, err := api.s.MessageRpc.ListGroupMember(c, &message.ListGroupMemberReq{
+	rpcResp, err := api.s.MessageRpc.ListGroupMember(c.Request.Context(), &message.ListGroupMemberReq{
 		GroupId: req.GroupId,
 		UserId:  c.GetInt64("user_id"),
 	})
@@ -329,7 +329,7 @@ func (api *GroupApi) MoveOutMember(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.MoveOutMember(c, &message.MoveOutMemberReq{
+	_, err = api.s.MessageRpc.MoveOutMember(c.Request.Context(), &message.MoveOutMemberReq{
 		GroupId: req.GroupId,
 		UserId:  c.GetInt64("user_id"),
 	})
@@ -355,7 +355,7 @@ func (api *GroupApi) SearchGroup(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	rpcResp, err := api.s.MessageRpc.SearchGroup(c, &message.SearchGroupReq{
+	rpcResp, err := api.s.MessageRpc.SearchGroup(c.Request.Context(), &message.SearchGroupReq{
 		GroupNo: req.GroupNo,
 	})
 	if err != nil {
@@ -393,7 +393,7 @@ func (api *GroupApi) UpdateGroupInfo(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.MessageRpc.UpdateGroupInfo(c, &message.UpdateGroupInfoReq{
+	_, err = api.s.MessageRpc.UpdateGroupInfo(c.Request.Context(), &message.UpdateGroupInfoReq{
 		UserId:  c.GetInt64("user_id"),
 		GroupId: req.GroupId,
 		Name:    req.Name,

@@ -46,7 +46,7 @@ func (api *FriendApi) DeleteFriend(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.UserRpc.DeleteFriend(c, &user.DeleteFriendReq{
+	_, err = api.s.UserRpc.DeleteFriend(c.Request.Context(), &user.DeleteFriendReq{
 		UserId:   c.GetInt64("user_id"),
 		FriendId: req.FriendId,
 	})
@@ -71,7 +71,7 @@ func (api *FriendApi) FriendApply(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.UserRpc.FriendApply(c, &user.FriendApplyReq{UserId: c.GetInt64("user_id"), FriendId: req.FriendId})
+	_, err = api.s.UserRpc.FriendApply(c.Request.Context(), &user.FriendApplyReq{UserId: c.GetInt64("user_id"), FriendId: req.FriendId})
 	if err != nil {
 		err = errcode.FromRpcError(err)
 	}
@@ -93,7 +93,7 @@ func (api *FriendApi) HandleApply(c *gin.Context) {
 		err = errcode.ErrInvalidParam
 		return
 	}
-	_, err = api.s.UserRpc.HandleApply(c, &user.HandleApplyReq{ApplyId: req.ApplyId, UserId: c.GetInt64("user_id"), Status: int32(req.Status)})
+	_, err = api.s.UserRpc.HandleApply(c.Request.Context(), &user.HandleApplyReq{ApplyId: req.ApplyId, UserId: c.GetInt64("user_id"), Status: int32(req.Status)})
 	if err != nil {
 		err = errcode.FromRpcError(err)
 	}
@@ -111,7 +111,7 @@ func (api *FriendApi) ListApply(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	rpcResp, err := api.s.UserRpc.ListApply(c, &user.ListApplyReq{UserId: c.GetInt64("user_id")})
+	rpcResp, err := api.s.UserRpc.ListApply(c.Request.Context(), &user.ListApplyReq{UserId: c.GetInt64("user_id")})
 	if err != nil {
 		err = errcode.FromRpcError(err)
 		return
@@ -142,7 +142,7 @@ func (api *FriendApi) ListFriend(c *gin.Context) {
 			response.Success(c, resp)
 		}
 	}()
-	rpcResp, err := api.s.UserRpc.ListFriends(c, &user.ListFriendsReq{UserId: c.GetInt64("user_id")})
+	rpcResp, err := api.s.UserRpc.ListFriends(c.Request.Context(), &user.ListFriendsReq{UserId: c.GetInt64("user_id")})
 	if err != nil {
 		err = errcode.FromRpcError(err)
 	}

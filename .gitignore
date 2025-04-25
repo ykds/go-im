@@ -4,3 +4,4 @@
 build
 static
 *.yaml
+.env
