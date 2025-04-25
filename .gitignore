@@ -1,6 +1,5 @@
 .vscode
 *.exe
-*.sql
 *.log
 build
 static

@@ -48,7 +48,7 @@ Linux 环境：
 
 1. 创建数据表
 > CREATE DATABASE im;
-> mysql im < im.sql
+> mysql goim < goim.sql
 
 2. Docker 运行 `Kafka、Redis、Jaeger、etcd`
    
@@ -89,7 +89,13 @@ Linux 环境：
 > ./build/seqserver -c cmd/seqserver/config.yaml
 
 ## Demo演示
-   - 注册
-   - 登录
-   - 添加好友
-   - 发送消息
+   - ### 注册
+  ![arch](./doc/reg.png)
+   - ### 登录
+  ![arch](./doc/login.png)
+   - ### 聊天会话
+  ![arch](./doc/chat1.png)
+  ![arch](./doc/chat2.png)
+   - ### 个人信息
+  ![arch](./doc/info.png)
+

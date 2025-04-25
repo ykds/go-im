@@ -590,7 +590,6 @@ func (s *Server) SendMessage(ctx context.Context, in *message.SendMessageReq) (*
 		Kind:      msg.Kind,
 		CreatedAt: msg.CreatedAt.Unix(),
 	}
-	log.Infof("%v", msg2)
 	s.sendKafka(in.ToId, in.Kind, msg2.Encode())
 	return &message.SendMessageResp{}, nil
 }
@@ -612,7 +611,7 @@ func (s *Server) isUserOnline(ctx context.Context, userId int64) bool {
 	if err != nil {
 		return false
 	}
-	return ret.(int) != 0
+	return ret.(int64) > 0
 }
 
 func (s *Server) createSessionIfNotExists(ctx context.Context, userId, friendId int64) (int64, error) {

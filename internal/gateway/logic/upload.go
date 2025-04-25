@@ -2,7 +2,6 @@ package logic
 
 import (
 	"go-im/internal/common/errcode"
-	"go-im/internal/common/middleware/mhttp"
 	"go-im/internal/common/response"
 	"go-im/internal/gateway/server"
 	"go-im/internal/gateway/types"
@@ -25,7 +24,7 @@ func NewUploadApi(s *server.Server) *UploadApi {
 }
 
 func (api *UploadApi) RegisterRouter(engine *gin.RouterGroup) {
-	g := engine.Group("/upload", mhttp.AuthMiddleware())
+	g := engine.Group("/upload")
 	g.POST("", api.Upload)
 }
 
