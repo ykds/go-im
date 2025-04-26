@@ -26,6 +26,7 @@ type ApplyInfo struct {
 	UserId   int64  `json:"userId"`
 	Username string `json:"username"`
 	Avatar   string `json:"avatar"`
+	Gender   string `json:"gender"`
 }
 
 type CreateGroupReq struct {
@@ -49,7 +50,6 @@ type CreateSessionResp struct {
 }
 
 type DeleteFriendReq struct {
-	UserId   int64 `json:"userId"`
 	FriendId int64 `json:"friendId"`
 }
 
@@ -81,6 +81,7 @@ type FriendInfo struct {
 	UserId   int64  `json:"userId"`
 	Username string `json:"username"`
 	Avatar   string `json:"avatar"`
+	Gender   string `json:"gender"`
 }
 
 type GroupInfo struct {
@@ -88,6 +89,7 @@ type GroupInfo struct {
 	GroupNo int64         `json:"groupNo"`
 	Name    string        `json:"name"`
 	Avatar  string        `json:"avatar"`
+	OwnerId int64         `json:"ownerId"`
 	Members []GroupMember `json:"members"`
 }
 
@@ -114,8 +116,8 @@ type HandleGroupApplyResp struct {
 }
 
 type InviteMemberReq struct {
-	GroupId   int64 `json:"group_id"`
-	InvitedId int64 `json:"invited_id"`
+	GroupId   int64   `json:"group_id"`
+	InvitedId []int64 `json:"invited_ids"`
 }
 
 type InviteMemberResp struct {
@@ -194,6 +196,7 @@ type MessageInfo struct {
 
 type MoveOutMemberReq struct {
 	GroupId int64 `json:"group_id"`
+	UserId  int64 `json:"user_id"`
 }
 
 type MoveOutMemberResp struct {
@@ -261,6 +264,7 @@ type SessionInfo struct {
 	GroupId      int64  `json:"groupId"`
 	GroupName    string `json:"groupName,omitempty"`
 	GroupAvatar  string `json:"groupAvatar,omitempty"`
+	MemberCount  int64  `json:"memberCount,omitempty"`
 	FriendId     int64  `json:"friendId"`
 	FrienName    string `json:"friendName"`
 	FriendAvatar string `json:"friendAvatar,omitempty"`
@@ -295,12 +299,14 @@ type UserApply struct {
 	ApplyId int64  `json:"apply_id"`
 	Name    string `json:"name"`
 	Avatar  string `json:"avatar"`
+	Gender  string `json:"gender"`
 }
 
 type UserInfoReq struct {
 }
 
 type UserInfoResp struct {
+	Id       int64  `json:"id"`
 	Phone    string `json:"phone"`
 	Username string `json:"username"`
 	Avatar   string `json:"avatar"`

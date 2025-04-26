@@ -81,6 +81,11 @@ func NewDB(cfg Config) *DB {
 	return &DB{DB: db, sqlDB: sqlDB}
 }
 
+func (db *DB) Debug() *DB {
+	db.DB = db.DB.Debug()
+	return db
+}
+
 func (db *DB) Close() error {
 	return db.sqlDB.Close()
 }

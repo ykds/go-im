@@ -257,7 +257,7 @@ func (s *Server) InviteMember(ctx context.Context, in *message.InviteMemberReq) 
 	if isMember {
 		return nil, errcode.ToRpcError(errcode.ErrWasGroupMember)
 	}
-	err = s.groupMemberRepository.InviteMember(ctx, in.GroupId, in.UserId)
+	err = s.groupMemberRepository.InviteMember(ctx, in.GroupId, in.InvitedIds)
 	if err != nil {
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
@@ -312,6 +312,7 @@ func (s *Server) ListGroupApply(ctx context.Context, in *message.ListGroupApplyR
 				ApplyId: apply.ID,
 				Name:    user.Username,
 				Avatar:  user.Avatar,
+				Gender:  user.Gender,
 			})
 		}
 		resp = append(resp, ag)
@@ -350,9 +351,10 @@ func (s *Server) ListGroup(ctx context.Context, in *message.ListGroupReq) (*mess
 				return nil, errcode.ToRpcError(err)
 			}
 			m = append(m, &message.GroupMember{
-				Id:     mem.UserId,
-				Name:   info.Username,
-				Avatar: info.Avatar,
+				Id:      mem.UserId,
+				Name:    info.Username,
+				Avatar:  info.Avatar,
+				IsOwner: group.OwnerId == mem.UserId,
 			})
 		}
 		groupInfo = append(groupInfo, &message.GroupInfo{
@@ -360,6 +362,7 @@ func (s *Server) ListGroup(ctx context.Context, in *message.ListGroupReq) (*mess
 			Name:    group.Name,
 			GroupNo: group.GroupNo,
 			Avatar:  group.Avatar,
+			OwnerId: group.OwnerId,
 			Members: m,
 		})
 	}
@@ -370,6 +373,11 @@ func (s *Server) ListGroup(ctx context.Context, in *message.ListGroupReq) (*mess
 }
 
 func (s *Server) ListGroupMember(ctx context.Context, in *message.ListGroupMemberReq) (*message.ListGroupMemberResp, error) {
+	group, err := s.groupRepository.FindOne(ctx, in.GroupId)
+	if err != nil {
+		log.Errorf("err: %v", err)
+		return nil, errcode.ToRpcError(err)
+	}
 	isMember, err := s.groupMemberRepository.IsMember(ctx, in.GroupId, in.UserId)
 	if err != nil {
 		log.Errorf("err: %v", err)
@@ -397,6 +405,7 @@ func (s *Server) ListGroupMember(ctx context.Context, in *message.ListGroupMembe
 			Name:      info.Username,
 			Avatar:    info.Avatar,
 			SessionId: member.SessionId,
+			IsOwner:   group.OwnerId == member.UserId,
 		})
 	}
 	return &message.ListGroupMemberResp{
@@ -419,12 +428,18 @@ func (s *Server) ListSession(ctx context.Context, in *message.ListSessionReq) (*
 				log.Errorf("err: %v", err)
 				return nil, errcode.ToRpcError(err)
 			}
+			count, err := s.groupMemberRepository.MemberCount(ctx, group.ID)
+			if err != nil {
+				log.Errorf("err: %v", err)
+				return nil, errcode.ToRpcError(err)
+			}
 			infos = append(infos, &message.SessionInfo{
 				SessionId:   item.ID,
 				Kind:        item.Kind,
 				GroupId:     &group.ID,
 				GroupName:   &group.Name,
 				GroupAvatar: &group.Avatar,
+				MemberCount: &count,
 				Seq:         item.Seq,
 			})
 		} else if item.Kind == "single" {
@@ -489,7 +504,7 @@ func (s *Server) MoveOutMember(ctx context.Context, in *message.MoveOutMemberReq
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
-	if group.OwnerId != in.UserId {
+	if group.OwnerId != in.OpUserId {
 		return nil, errcode.ToRpcError(errcode.ErrGroupOwnerOnly)
 	}
 	isMember, err := s.groupMemberRepository.IsMember(ctx, in.GroupId, in.UserId)

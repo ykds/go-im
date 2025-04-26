@@ -89,6 +89,7 @@ message ApplyInfo {
 	string username = 3;
 	string avatar = 4;
 	int32 status = 5;
+  string gender = 6;
 }
 
 message ListApplyResp {

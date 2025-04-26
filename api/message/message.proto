@@ -14,12 +14,13 @@ message SessionInfo {
   optional int64 group_id = 3;
   optional string group_name = 4;
   optional string group_avatar = 5;
+  optional int64 member_count = 6;
 
-  optional int64 friend_id = 6;
-  optional string friend_name = 7;
-  optional string friend_avatar = 8;
+  optional int64 friend_id = 7;
+  optional string friend_name = 8;
+  optional string friend_avatar = 9;
 
-  int64 seq = 9;
+  int64 seq = 10;
 }
 
 message ListSessionResp {
@@ -96,7 +97,7 @@ message GroupMember {
   string name = 2;
   string avatar = 3;
   int64 session_id = 4;
-
+  bool is_owner = 5;
 }
 
 message GroupInfo {
@@ -104,7 +105,8 @@ message GroupInfo {
   int64 group_no = 2;
   string name = 3;
   string avatar = 4;
-  repeated GroupMember members = 5;
+  int64 owner_id = 5;
+  repeated GroupMember members = 6;
 }
 
 message ListGroupResp {
@@ -121,14 +123,15 @@ message DismissGroupResp{}
 message InviteMemberReq {
   int64 group_id = 1;
   int64 user_id = 2;
-  int64 invited_id = 3;
+  repeated int64 invited_ids = 3;
 }
 
 message InviteMemberResp{}
 
 message MoveOutMemberReq{
-  int64 group_id = 1;
-  int64 user_id = 2;
+  int64 op_user_id = 1;
+  int64 group_id = 2;
+  int64 user_id = 3;
 }
 
 message MoveOutMemberResp{}
@@ -198,6 +201,7 @@ message UserApply {
   int64 apply_id = 1;
   string name = 2;
   string avatar = 3;
+  string gender = 4;
 }
 
 message ApplyGroup {

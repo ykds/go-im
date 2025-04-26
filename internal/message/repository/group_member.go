@@ -20,7 +20,18 @@ func NewGroupMemberRepository(db *db.DB) *GroupMemberRepository {
 	return &GroupMemberRepository{db}
 }
 
-func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64, userId int64) error {
+func (g *GroupMemberRepository) MemberCount(ctx context.Context, groupId int64) (int64, error) {
+	var count int64
+	err := g.db.Wrap(ctx, "MemberCount", func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&model.GroupMember{}).Where("group_id=?", groupId).Count(&count)
+	})
+	if err != nil {
+		return 0, errors.Wrap(err, "MemberCount")
+	}
+	return count, nil
+}
+
+func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64, userId []int64) error {
 	_, span := mtrace.StartSpan(ctx, "InviteMember", trace.WithSpanKind(trace.SpanKindInternal))
 	defer mtrace.EndSpan(span)
 	sql := make([]string, 0)
@@ -28,26 +39,36 @@ func (g *GroupMemberRepository) InviteMember(ctx context.Context, groupId int64,
 		span.SetAttributes(mtrace.SQLKey.String(strings.Join(sql, "; ")))
 	}()
 	err := g.db.Transaction(func(tx *gorm.DB) error {
-		session := &model.UserSession{
-			UserId: userId,
-			ToId:   groupId,
-			Kind:   "group",
+		sessions := make([]*model.UserSession, 0, len(userId))
+		for _, id := range userId {
+			sessions = append(sessions, &model.UserSession{
+				UserId: id,
+				ToId:   groupId,
+				Kind:   "group",
+			})
 		}
-		stmt := tx.Create(session)
+		stmt := tx.Create(sessions)
 		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
-			return tx.Create(session)
+			return tx.Create(sessions)
 		}))
 		if stmt.Error != nil {
 			return stmt.Error
 		}
-		member := &model.GroupMember{
-			GroupId:   groupId,
-			UserId:    userId,
-			SessionId: session.ID,
+		userSessionMap := make(map[int64]int64, len(userId))
+		for _, session := range sessions {
+			userSessionMap[session.UserId] = session.ID
 		}
-		stmt = tx.Create(member)
+		members := make([]*model.GroupMember, 0, len(userId))
+		for _, id := range userId {
+			members = append(members, &model.GroupMember{
+				GroupId:   groupId,
+				UserId:    id,
+				SessionId: userSessionMap[id],
+			})
+		}
+		stmt = tx.Create(members)
 		sql = append(sql, tx.ToSQL(func(tx *gorm.DB) *gorm.DB {
-			return tx.Create(member)
+			return tx.Create(members)
 		}))
 		if stmt.Error != nil {
 			return stmt.Error

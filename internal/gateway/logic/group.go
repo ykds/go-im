@@ -24,7 +24,7 @@ func (api *GroupApi) RegisterRouter(engine *gin.RouterGroup) {
 	{
 		group.POST("", api.CreateGroup)
 		group.GET("", api.ListGroup)
-		group.DELETE("", api.DismissGroup)
+		group.POST("/dismiss", api.DismissGroup)
 		group.PUT("", api.UpdateGroupInfo)
 		group.POST("/apply", api.ApplyInGroup)
 		group.GET("/apply", api.ListGroupApply)
@@ -188,9 +188,9 @@ func (api *GroupApi) InviteMember(c *gin.Context) {
 		return
 	}
 	_, err = api.s.MessageRpc.InviteMember(c.Request.Context(), &message.InviteMemberReq{
-		GroupId:   req.GroupId,
-		InvitedId: req.InvitedId,
-		UserId:    c.GetInt64("user_id"),
+		GroupId:    req.GroupId,
+		InvitedIds: req.InvitedId,
+		UserId:     c.GetInt64("user_id"),
 	})
 	if err != nil {
 		err = errcode.FromRpcError(err)
@@ -227,6 +227,7 @@ func (api *GroupApi) ListGroupApply(c *gin.Context) {
 				ApplyId: apply.ApplyId,
 				Name:    apply.Name,
 				Avatar:  apply.Avatar,
+				Gender:  apply.Gender,
 			})
 		}
 		resp.List = append(resp.List, ag)
@@ -268,6 +269,7 @@ func (api *GroupApi) ListGroup(c *gin.Context) {
 			Name:    group.Name,
 			Avatar:  group.Avatar,
 			Members: members,
+			OwnerId: group.OwnerId,
 		})
 	}
 	resp = types.ListGroupResp{
@@ -330,8 +332,9 @@ func (api *GroupApi) MoveOutMember(c *gin.Context) {
 		return
 	}
 	_, err = api.s.MessageRpc.MoveOutMember(c.Request.Context(), &message.MoveOutMemberReq{
-		GroupId: req.GroupId,
-		UserId:  c.GetInt64("user_id"),
+		GroupId:  req.GroupId,
+		OpUserId: c.GetInt64("user_id"),
+		UserId:   req.UserId,
 	})
 	if err != nil {
 		err = errcode.FromRpcError(err)

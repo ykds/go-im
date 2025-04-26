@@ -309,6 +309,7 @@ func (s *Server) ListApply(ctx context.Context, in *user.ListApplyReq) (*user.Li
 			Username: fd.Username,
 			Avatar:   fd.Avatar,
 			Status:   int32(apply.Status),
+			Gender:   fd.Gender,
 		})
 	}
 	return &user.ListApplyResp{

@@ -168,6 +168,7 @@ func (api *UserApi) UserInfo(c *gin.Context) {
 		return
 	}
 	resp = types.UserInfoResp{
+		Id:       rpcResp.UserId,
 		Phone:    rpcResp.Phone,
 		Username: rpcResp.Username,
 		Avatar:   rpcResp.Avatar,

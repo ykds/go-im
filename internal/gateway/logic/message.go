@@ -130,6 +130,9 @@ func (api *MessageApi) ListSession(c *gin.Context) {
 		if item.FriendAvatar != nil {
 			si.FriendAvatar = *item.FriendAvatar
 		}
+		if item.MemberCount != nil {
+			si.MemberCount = *item.MemberCount
+		}
 		infos = append(infos, si)
 	}
 	resp = types.ListSessionResp{List: infos}

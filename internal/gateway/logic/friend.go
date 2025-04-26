@@ -22,7 +22,7 @@ func NewFriendApi(s *server.Server) *FriendApi {
 func (api *FriendApi) RegisterRouter(engine *gin.RouterGroup) {
 	friend := engine.Group("/friends", mhttp.AuthMiddleware())
 	{
-		friend.DELETE("", api.DeleteFriend)
+		friend.POST("", api.DeleteFriend)
 		friend.GET("", api.ListFriend)
 		friend.GET("/apply", api.ListApply)
 		friend.POST("/apply", api.FriendApply)
@@ -123,6 +123,7 @@ func (api *FriendApi) ListApply(c *gin.Context) {
 			UserId:   int64(apply.FriendId),
 			Username: apply.Username,
 			Avatar:   apply.Avatar,
+			Gender:   apply.Gender,
 		})
 	}
 	resp = types.ListApplyResp{
@@ -152,6 +153,7 @@ func (api *FriendApi) ListFriend(c *gin.Context) {
 			UserId:   int64(friend.UserId),
 			Username: friend.Username,
 			Avatar:   friend.Avatar,
+			Gender:   friend.Gender,
 		})
 	}
 	resp = types.ListFriendsResp{

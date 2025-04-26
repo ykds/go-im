@@ -23,7 +23,10 @@ func Success(c *gin.Context, data any) {
 }
 
 func Error(c *gin.Context, err error) {
-	log.Errorf("err: %v", err)
+	var e1 *errcode.Error
+	if !errors.As(err, &e1) {
+		log.Errorf("err: %v", err)
+	}
 	code := 500
 	message := "服务器异常"
 	var e *errcode.Error
