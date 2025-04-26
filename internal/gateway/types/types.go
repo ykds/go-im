@@ -82,6 +82,7 @@ type FriendInfo struct {
 	Username string `json:"username"`
 	Avatar   string `json:"avatar"`
 	Gender   string `json:"gender"`
+	Remark   string `json:"remark"`
 }
 
 type GroupInfo struct {
@@ -312,3 +313,10 @@ type UserInfoResp struct {
 	Avatar   string `json:"avatar"`
 	Gender   string `json:"gender"`
 }
+
+type UpdateFriendInfoReq struct {
+	FriendId int64  `json:"friend_id"`
+	Remark   string `json:"remark"`
+}
+
+type UpdateFriendInfoResp struct{}

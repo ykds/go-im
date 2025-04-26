@@ -1,7 +1,6 @@
 package log
 
 import (
-	"bufio"
 	"io"
 	"net"
 	"os"
@@ -83,8 +82,11 @@ type Target struct {
 	Compress   bool   `json:"compress" yaml:"compress"`
 	MaxBackups int    `json:"max_backups" yaml:"max_backups"`
 
-	Addr     string `json:"addr"`
-	Protocol string `json:"protocol"`
+	Addr         string `json:"addr"`
+	Protocol     string `json:"protocol"`
+	BatchSize    int    `json:"batch_size"`
+	BatchBytes   int    `json:"batch_bytes"`
+	BatchTimeout int    `json:"batch_timeout"`
 }
 
 type Logger struct {
@@ -92,6 +94,7 @@ type Logger struct {
 	*zap.SugaredLogger
 	output zapcore.WriteSyncer
 	conn   net.Conn
+	file   io.WriteCloser
 }
 
 func InitLogger(cfg Config) {
@@ -111,7 +114,7 @@ func InitLogger(cfg Config) {
 		case ConsoleOutput:
 			output = append(output, os.Stdout)
 		case FileOutput:
-			lumberjack := &lumberjack.Logger{
+			defaultLogger.file = &lumberjack.Logger{
 				Filename:   item.Filename,
 				MaxSize:    item.MaxSize,
 				MaxAge:     item.MaxAge,
@@ -119,7 +122,7 @@ func InitLogger(cfg Config) {
 				LocalTime:  true,
 				Compress:   true,
 			}
-			output = append(output, lumberjack)
+			output = append(output, defaultLogger.file)
 		case NetworkOutput:
 			switch item.Protocol {
 			case TCP:
@@ -128,14 +131,14 @@ func InitLogger(cfg Config) {
 					panic(err)
 				}
 				defaultLogger.conn = conn
-				output = append(output, bufio.NewWriter(conn))
+				output = append(output, NewNetWriter(conn, WithBatchSize(item.BatchSize), WithBatchBytes(item.BatchBytes), WithBatchTimeout(item.BatchTimeout)))
 			case UDP:
 				conn, err := net.Dial("udp", item.Addr)
 				if err != nil {
 					panic(err)
 				}
 				defaultLogger.conn = conn
-				output = append(output, bufio.NewWriter(conn))
+				output = append(output, NewNetWriter(conn, WithBatchSize(item.BatchSize), WithBatchBytes(item.BatchBytes), WithBatchTimeout(item.BatchTimeout)))
 			}
 		}
 	}
@@ -176,4 +179,14 @@ func (l *Logger) GetOutput() io.Writer {
 
 func (l *Logger) Printf(format string, args ...interface{}) {
 	l.SugaredLogger.Infof(format, args...)
+}
+
+func Close() error {
+	if defaultLogger.conn != nil {
+		return defaultLogger.conn.Close()
+	}
+	if defaultLogger.file != nil {
+		return defaultLogger.file.Close()
+	}
+	return nil
 }

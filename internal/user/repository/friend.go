@@ -48,12 +48,12 @@ func (f *FriendRepository) Insert(ctx context.Context, data *model.Friends) (int
 	return data.ID, nil
 }
 
-func (f *FriendRepository) Update(ctx context.Context, data *model.Friends) error {
-	err := f.db.Wrap(ctx, "Update", func(tx *gorm.DB) *gorm.DB {
+func (f *FriendRepository) UpdateFriendInfo(ctx context.Context, data *model.Friends) error {
+	err := f.db.Wrap(ctx, "UpdateFriendInfo", func(tx *gorm.DB) *gorm.DB {
 		return tx.Updates(&data)
 	})
 	if err != nil {
-		return errors.Wrap(err, "Update")
+		return errors.Wrap(err, "UpdateFriendInfo")
 	}
 	return nil
 }

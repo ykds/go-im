@@ -19,20 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	User_Register_FullMethodName     = "/user.User/Register"
-	User_Login_FullMethodName        = "/user.User/Login"
-	User_UserInfo_FullMethodName     = "/user.User/UserInfo"
-	User_UpdateInfo_FullMethodName   = "/user.User/UpdateInfo"
-	User_Heartbeat_FullMethodName    = "/user.User/Heartbeat"
-	User_Connect_FullMethodName      = "/user.User/Connect"
-	User_DisConnect_FullMethodName   = "/user.User/DisConnect"
-	User_FriendApply_FullMethodName  = "/user.User/FriendApply"
-	User_HandleApply_FullMethodName  = "/user.User/HandleApply"
-	User_ListApply_FullMethodName    = "/user.User/ListApply"
-	User_ListFriends_FullMethodName  = "/user.User/ListFriends"
-	User_DeleteFriend_FullMethodName = "/user.User/DeleteFriend"
-	User_IsFriend_FullMethodName     = "/user.User/IsFriend"
-	User_SearchUser_FullMethodName   = "/user.User/SearchUser"
+	User_Register_FullMethodName         = "/user.User/Register"
+	User_Login_FullMethodName            = "/user.User/Login"
+	User_UserInfo_FullMethodName         = "/user.User/UserInfo"
+	User_UpdateInfo_FullMethodName       = "/user.User/UpdateInfo"
+	User_Heartbeat_FullMethodName        = "/user.User/Heartbeat"
+	User_Connect_FullMethodName          = "/user.User/Connect"
+	User_DisConnect_FullMethodName       = "/user.User/DisConnect"
+	User_FriendApply_FullMethodName      = "/user.User/FriendApply"
+	User_HandleApply_FullMethodName      = "/user.User/HandleApply"
+	User_ListApply_FullMethodName        = "/user.User/ListApply"
+	User_ListFriends_FullMethodName      = "/user.User/ListFriends"
+	User_DeleteFriend_FullMethodName     = "/user.User/DeleteFriend"
+	User_IsFriend_FullMethodName         = "/user.User/IsFriend"
+	User_SearchUser_FullMethodName       = "/user.User/SearchUser"
+	User_UpdateFriendInfo_FullMethodName = "/user.User/UpdateFriendInfo"
 )
 
 // UserClient is the client API for User service.
@@ -53,6 +54,7 @@ type UserClient interface {
 	DeleteFriend(ctx context.Context, in *DeleteFriendReq, opts ...grpc.CallOption) (*DeleteFriendResp, error)
 	IsFriend(ctx context.Context, in *IsFriendReq, opts ...grpc.CallOption) (*IsFriendResp, error)
 	SearchUser(ctx context.Context, in *SearchUserReq, opts ...grpc.CallOption) (*SearchUserResp, error)
+	UpdateFriendInfo(ctx context.Context, in *UpdateFriendInfoReq, opts ...grpc.CallOption) (*UpdateFriendInfoResp, error)
 }
 
 type userClient struct {
@@ -203,6 +205,16 @@ func (c *userClient) SearchUser(ctx context.Context, in *SearchUserReq, opts ...
 	return out, nil
 }
 
+func (c *userClient) UpdateFriendInfo(ctx context.Context, in *UpdateFriendInfoReq, opts ...grpc.CallOption) (*UpdateFriendInfoResp, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateFriendInfoResp)
+	err := c.cc.Invoke(ctx, User_UpdateFriendInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServer is the server API for User service.
 // All implementations must embed UnimplementedUserServer
 // for forward compatibility.
@@ -221,6 +233,7 @@ type UserServer interface {
 	DeleteFriend(context.Context, *DeleteFriendReq) (*DeleteFriendResp, error)
 	IsFriend(context.Context, *IsFriendReq) (*IsFriendResp, error)
 	SearchUser(context.Context, *SearchUserReq) (*SearchUserResp, error)
+	UpdateFriendInfo(context.Context, *UpdateFriendInfoReq) (*UpdateFriendInfoResp, error)
 	mustEmbedUnimplementedUserServer()
 }
 
@@ -272,6 +285,9 @@ func (UnimplementedUserServer) IsFriend(context.Context, *IsFriendReq) (*IsFrien
 }
 func (UnimplementedUserServer) SearchUser(context.Context, *SearchUserReq) (*SearchUserResp, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SearchUser not implemented")
+}
+func (UnimplementedUserServer) UpdateFriendInfo(context.Context, *UpdateFriendInfoReq) (*UpdateFriendInfoResp, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateFriendInfo not implemented")
 }
 func (UnimplementedUserServer) mustEmbedUnimplementedUserServer() {}
 func (UnimplementedUserServer) testEmbeddedByValue()              {}
@@ -546,6 +562,24 @@ func _User_SearchUser_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _User_UpdateFriendInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateFriendInfoReq)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServer).UpdateFriendInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: User_UpdateFriendInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServer).UpdateFriendInfo(ctx, req.(*UpdateFriendInfoReq))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // User_ServiceDesc is the grpc.ServiceDesc for User service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -608,6 +642,10 @@ var User_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchUser",
 			Handler:    _User_SearchUser_Handler,
+		},
+		{
+			MethodName: "UpdateFriendInfo",
+			Handler:    _User_UpdateFriendInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

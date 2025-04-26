@@ -156,6 +156,7 @@ func (s *Server) UpdateInfo(ctx context.Context, in *user.UpdateInfoReq) (*user.
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
+	// TODO 查询在线好友，发送更新通知
 	return &user.UpdateInfoResp{}, nil
 }
 
@@ -337,6 +338,7 @@ func (s *Server) ListFriends(ctx context.Context, in *user.ListFriendsReq) (*use
 			Avatar:   usr.Avatar,
 			Gender:   usr.Gender,
 			Phone:    usr.Phone,
+			Remark:   fd.Remark,
 		})
 	}
 	return &user.ListFriendsResp{
@@ -362,4 +364,20 @@ func (s *Server) SearchUser(ctx context.Context, in *user.SearchUserReq) (*user.
 	return &user.SearchUserResp{
 		List: list,
 	}, nil
+}
+
+func (s *Server) UpdateFriendInfo(ctx context.Context, in *user.UpdateFriendInfoReq) (*user.UpdateFriendInfoResp, error) {
+	if in.Remark != "" {
+		return nil, nil
+	}
+	err := s.friendRepository.UpdateFriendInfo(ctx, &model.Friends{
+		UserId:   in.UserId,
+		FriendId: in.FriendId,
+		Remark:   in.Remark,
+	})
+	if err != nil {
+		log.Errorf("err: %v", err)
+		return nil, errcode.ToRpcError(err)
+	}
+	return &user.UpdateFriendInfoResp{}, nil
 }

@@ -27,6 +27,7 @@ func (api *FriendApi) RegisterRouter(engine *gin.RouterGroup) {
 		friend.GET("/apply", api.ListApply)
 		friend.POST("/apply", api.FriendApply)
 		friend.PUT("/apply", api.HandleApply)
+		friend.PUT("/info", api.UpdateFriendInfo)
 	}
 }
 
@@ -154,9 +155,36 @@ func (api *FriendApi) ListFriend(c *gin.Context) {
 			Username: friend.Username,
 			Avatar:   friend.Avatar,
 			Gender:   friend.Gender,
+			Remark:   friend.Remark,
 		})
 	}
 	resp = types.ListFriendsResp{
 		List: friendInfo,
+	}
+}
+
+func (api *FriendApi) UpdateFriendInfo(c *gin.Context) {
+	var (
+		req types.UpdateFriendInfoReq
+		err error
+	)
+	defer func() {
+		if err != nil {
+			response.Error(c, err)
+		} else {
+			response.Success(c, nil)
+		}
+	}()
+	if err = c.BindJSON(&req); err != nil {
+		err = errcode.ErrInvalidParam
+		return
+	}
+	_, err = api.s.UserRpc.UpdateFriendInfo(c.Request.Context(), &user.UpdateFriendInfoReq{
+		UserId:   c.GetInt64("user_id"),
+		FriendId: req.FriendId,
+		Remark:   req.Remark,
+	})
+	if err != nil {
+		err = errcode.FromRpcError(err)
 	}
 }

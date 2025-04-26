@@ -35,6 +35,7 @@ func main() {
 	c := config.ParseConfig(*cfg)
 
 	log.InitLogger(c.Log)
+	defer log.Close()
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
 	cli := etcd.NewClient(c.Server.Etcd)

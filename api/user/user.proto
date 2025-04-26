@@ -106,6 +106,7 @@ message FriendInfo {
 	string avatar = 3;
 	string phone = 4;
 	string gender = 5;
+  string remark = 6;
 }
 
 message ListFriendsResp {
@@ -144,6 +145,15 @@ message SearchUserResp {
   repeated SearchUserInfo list = 1;
 }
 
+message UpdateFriendInfoReq {
+  int64 user_id = 1;
+  int64 friend_id = 2;
+  string remark = 3;
+}
+
+message UpdateFriendInfoResp {
+}
+
 service User {
   rpc Register(RegisterReq) returns(RegisterResp);
   rpc Login(LoginReq) returns(LoginResp);
@@ -160,4 +170,5 @@ service User {
   rpc DeleteFriend(DeleteFriendReq) returns(DeleteFriendResp);
   rpc IsFriend(IsFriendReq) returns(IsFriendResp);
   rpc SearchUser(SearchUserReq) returns (SearchUserResp);
+  rpc UpdateFriendInfo(UpdateFriendInfoReq) returns (UpdateFriendInfoResp);
 }
