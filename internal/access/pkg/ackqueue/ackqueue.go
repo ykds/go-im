@@ -2,9 +2,11 @@ package ackqueue
 
 import (
 	"context"
-	"go-im/internal/access/types"
+	"go-im/api/access"
 	"go-im/internal/pkg/utils"
+	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -21,7 +23,8 @@ func init() {
 type node struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
-	msg        *types.Message
+	id         int64
+	msg        *access.Message
 	next       *node
 	pre        *node
 	t          *time.Timer
@@ -33,15 +36,17 @@ type AckQueue struct {
 	tail     *node
 	entryMap map[int64]*node
 
-	retry   chan *types.Message
+	retry   chan *access.Message
 	timeout time.Duration
 	isClose bool
 
 	mutex *sync.Mutex
 	cond  *sync.Cond
+
+	ackId atomic.Int64
 }
 
-func NewAckQueue(timeout time.Duration, retry chan *types.Message) *AckQueue {
+func NewAckQueue(timeout time.Duration, retry chan *access.Message) *AckQueue {
 	a := &AckQueue{
 		head:     &node{},
 		entryMap: make(map[int64]*node, 1000),
@@ -50,6 +55,7 @@ func NewAckQueue(timeout time.Duration, retry chan *types.Message) *AckQueue {
 		mutex:    &sync.Mutex{},
 		cond:     &sync.Cond{},
 	}
+	a.ackId.Store(0)
 	a.cond.L = a.mutex
 	utils.SafeGo(func() {
 		a.run()
@@ -57,7 +63,19 @@ func NewAckQueue(timeout time.Duration, retry chan *types.Message) *AckQueue {
 	return a
 }
 
-func (a *AckQueue) Put(msg *types.Message) {
+func (a *AckQueue) genAckId() int64 {
+	i := a.ackId.Add(1)
+	if i == math.MaxInt64 {
+		if a.ackId.CompareAndSwap(i, 0) {
+			return a.ackId.Add(1)
+		} else {
+			return a.genAckId()
+		}
+	}
+	return i
+}
+
+func (a *AckQueue) Put(msg *access.Message) {
 	a.cond.L.Lock()
 	defer a.cond.L.Unlock()
 	defer a.cond.Broadcast()
@@ -69,13 +87,16 @@ func (a *AckQueue) Put(msg *types.Message) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t := timepool.Get().(*time.Timer)
 	t.Reset(a.timeout)
+	ackId := a.genAckId()
 	e := &node{
 		ctx:    ctx,
 		cancel: cancel,
 		msg:    msg,
 		t:      t,
+		id:     ackId,
 	}
-	a.entryMap[e.msg.Id] = e
+	msg.AckId = ackId
+	a.entryMap[ackId] = e
 	if a.tail == nil {
 		a.head.next = e
 		e.pre = a.head
@@ -111,14 +132,14 @@ func (a *AckQueue) run() {
 		case <-n.ctx.Done():
 			n.t.Stop()
 			timepool.Put(n.t)
-			delete(a.entryMap, n.msg.Id)
+			delete(a.entryMap, n.id)
 		case <-n.t.C:
 			a.retry <- n.msg
 			n.retryCount++
 			if n.retryCount >= 3 {
 				n.t.Stop()
 				timepool.Put(n.t)
-				delete(a.entryMap, n.msg.Id)
+				delete(a.entryMap, n.id)
 			} else {
 				a.cond.L.Lock()
 				n.t.Reset(a.timeout)
@@ -132,14 +153,14 @@ func (a *AckQueue) run() {
 
 }
 
-func (a *AckQueue) Ack(id int64) {
+func (a *AckQueue) Ack(ackId int64) {
 	a.cond.L.Lock()
 	defer a.cond.L.Unlock()
 
 	if a.isClose {
 		return
 	}
-	e, ok := a.entryMap[id]
+	e, ok := a.entryMap[ackId]
 	if !ok {
 		return
 	}

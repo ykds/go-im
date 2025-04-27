@@ -2,8 +2,8 @@ package server
 
 import (
 	"fmt"
+	"go-im/api/access"
 	"go-im/internal/access/pkg/msglist"
-	"go-im/internal/access/types"
 	"hash/crc32"
 	"sync"
 )
@@ -13,7 +13,7 @@ type bucket struct {
 	rwmutex *sync.RWMutex
 }
 
-func (b *bucket) Insert(key string, msg *types.Message, unread int) {
+func (b *bucket) Insert(key string, msg *access.Message, msgBody *access.MessageBody, unread int) {
 	b.rwmutex.Lock()
 	list, ok := b.entries[key]
 	if !ok {
@@ -21,7 +21,7 @@ func (b *bucket) Insert(key string, msg *types.Message, unread int) {
 		b.entries[key] = list
 	}
 	b.rwmutex.Unlock()
-	list.Insert(msg, unread)
+	list.Insert(msg, msgBody, unread)
 }
 
 func (b *bucket) Ack(key string, seq int64) {
@@ -35,7 +35,7 @@ func (b *bucket) Ack(key string, seq int64) {
 	list.AckMsg(seq)
 }
 
-func (b *bucket) List(key string, seq int64) []*types.Message {
+func (b *bucket) List(key string, seq int64) []*access.Message {
 	b.rwmutex.RLock()
 	list, ok := b.entries[key]
 	if !ok {
@@ -58,7 +58,7 @@ func NewMsgBox() *MsgBox {
 	}
 }
 
-func (mb *MsgBox) List(kind string, sessionId, seq int64) []*types.Message {
+func (mb *MsgBox) List(kind string, sessionId, seq int64) []*access.Message {
 	k := key(kind, sessionId)
 	index := hash(k)
 	i := index % len(mb.box)
@@ -72,8 +72,8 @@ func (mb *MsgBox) List(kind string, sessionId, seq int64) []*types.Message {
 	return btk.List(k, seq)
 }
 
-func (mb *MsgBox) Append(msg *types.Message, kind string, unread int) {
-	k := key(kind, msg.SessionId)
+func (mb *MsgBox) Append(msg *access.Message, msgBody *access.MessageBody, unread int) {
+	k := key(msgBody.Kind, msgBody.SessionId)
 	index := hash(k)
 	i := index % len(mb.box)
 	mb.rwm.RLock()
@@ -91,7 +91,7 @@ func (mb *MsgBox) Append(msg *types.Message, kind string, unread int) {
 	} else {
 		mb.rwm.RUnlock()
 	}
-	btk.Insert(k, msg, unread)
+	btk.Insert(k, msg, msgBody, unread)
 }
 
 func (mb *MsgBox) Ack(kind string, sessionId int64, seq int64) {

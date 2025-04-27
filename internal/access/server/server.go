@@ -2,13 +2,14 @@ package server
 
 import (
 	"context"
+	"go-im/api/access"
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/access/config"
-	"go-im/internal/access/types"
 	"go-im/internal/common/middleware/mgrpc"
+	"go-im/internal/common/mkafka"
+	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
-	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/utils"
 	"strconv"
 	"strings"
@@ -18,9 +19,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 )
 
 var upgrader = websocket.Upgrader{
@@ -37,7 +39,7 @@ type WsServer struct {
 	cancel context.CancelFunc
 
 	conns  map[int64]*Conn
-	msgCh  chan *kafka.Message
+	msgCh  chan *kafkago.Message
 	msgbox *MsgBox
 
 	m sync.Mutex
@@ -79,7 +81,7 @@ func NewServer(c *config.Config) *WsServer {
 		MessageRpc: message.NewMessageClient(messageConn),
 		conns:      make(map[int64]*Conn, 1000),
 		m:          sync.Mutex{},
-		msgCh:      make(chan *kafka.Message, 1000),
+		msgCh:      make(chan *kafkago.Message, 1000),
 		msgbox:     NewMsgBox(),
 	}
 	go ws.consume()
@@ -123,121 +125,207 @@ func (ws *WsServer) handleMsg() {
 		case <-ws.ctx.Done():
 			return
 		case kafkaMsg := <-ws.msgCh:
-			var msg types.Message
+			var msg access.Message
 			switch kafkaMsg.Topic {
 			case mkafka.MessageTopic:
 				split := strings.Split(string(kafkaMsg.Key), "-")
 				kind := split[0]
 				toIdStr := split[1]
 				toId, _ := strconv.ParseInt(toIdStr, 10, 64)
-				commsg := types.Message{}
-				err := commsg.Decode(kafkaMsg.Value)
+				msgBody := access.MessageBody{}
+				err := proto.Unmarshal(kafkaMsg.Value, &msgBody)
 				if err != nil {
 					log.Errorf("decode msg failed, err: %v", err)
 					continue
 				}
 
-				if kind == "group" {
+				switch kind {
+				case "group":
 					resp, err := ws.MessageRpc.ListGroupMember(context.Background(), &message.ListGroupMemberReq{
 						GroupId: int64(toId),
-						UserId:  commsg.FromId,
+						UserId:  msgBody.FromId,
 					})
 					if err != nil {
 						log.Errorf("list group member failed, err: %v", err)
 						continue
 					}
-					msg = types.Message{
-						Id:      commsg.Id,
-						FromId:  commsg.FromId,
-						ToId:    commsg.ToId,
-						Seq:     commsg.Seq,
-						Type:    mkafka.MessageMsg,
-						Content: string(kafkaMsg.Value),
+
+					msgBody := access.MessageBody{}
+					err = proto.Unmarshal(kafkaMsg.Value, &msgBody)
+					if err != nil {
+						log.Errorf("unmarshal msg failed, %v", err)
+						continue
 					}
-					content := &types.NewMessageResp{
+					content := &access.NewMessageNotifyMsg{
 						Kind: kind,
-						Seq:  commsg.Seq,
-						ToId: commsg.ToId,
+						Seq:  msgBody.Seq,
+					}
+					msg = access.Message{
+						Type: int64(mkafka.MessageMsg),
+						Data: kafkaMsg.Value,
 					}
 					ws.m.Lock()
 					for _, member := range resp.Members {
-						if member.Id == msg.FromId {
+						if member.Id == msgBody.FromId {
 							continue
 						}
-						msg.SessionId = member.SessionId
 						content.SessionId = member.SessionId
-						ws.msgbox.Append(&msg, kind, len(resp.Members))
+						ws.msgbox.Append(&msg, &msgBody, len(resp.Members))
 						c, ok := ws.conns[member.Id]
 						if ok {
-							c.Send(&types.Message{
-								Type:    mkafka.NewMessageMsg,
-								Content: string(content.Encode()),
+							b, _ := proto.Marshal(content)
+							c.Send(&access.Message{
+								Type: int64(mkafka.NewMessageMsg),
+								Data: b,
 							})
 						}
 					}
 					ws.m.Unlock()
-				} else {
-					msg = types.Message{
-						Id:        commsg.Id,
-						SessionId: commsg.SessionId,
-						FromId:    commsg.FromId,
-						ToId:      commsg.ToId,
-						Seq:       commsg.Seq,
-						Type:      mkafka.MessageMsg,
-						Content:   string(kafkaMsg.Value),
+				case "single":
+					msg = access.Message{
+						Type: int64(mkafka.MessageMsg),
+						Data: kafkaMsg.Value,
 					}
-					content := &types.NewMessageResp{
+					msgBody := access.MessageBody{}
+					err = proto.Unmarshal(kafkaMsg.Value, &msgBody)
+					if err != nil {
+						log.Errorf("unmarshal msg failed, %v", err)
+						continue
+					}
+					content := &access.NewMessageNotifyMsg{
 						Kind:      kind,
-						SessionId: commsg.SessionId,
-						Seq:       commsg.Seq,
-						ToId:      commsg.ToId,
+						SessionId: msgBody.SessionId,
+						Seq:       msgBody.Seq,
 					}
-					ws.msgbox.Append(&msg, kind, 1)
+					ws.msgbox.Append(&msg, &msgBody, 1)
 					ws.m.Lock()
 					c, ok := ws.conns[toId]
 					ws.m.Unlock()
 					if !ok {
 						continue
 					}
-					c.Send(&types.Message{
-						Type:    mkafka.NewMessageMsg,
-						Content: string(content.Encode()),
+					b, _ := proto.Marshal(content)
+					c.Send(&access.Message{
+						Type: int64(mkafka.NewMessageMsg),
+						Data: b,
 					})
 				}
-			case mkafka.FriendApplyNotifyTopic:
-				toId, _ := strconv.ParseInt(string(kafkaMsg.Key), 10, 64)
-				msg = types.Message{
-					Type:    mkafka.FriendNotifyMsg,
-					Content: string(kafkaMsg.Value),
+			case mkafka.FriendEventTopic:
+				contentType, _ := strconv.Atoi(string(kafkaMsg.Key))
+				msg = access.Message{
+					Type: int64(contentType),
+					Data: kafkaMsg.Value,
 				}
-				ws.m.Lock()
-				c, ok := ws.conns[toId]
-				ws.m.Unlock()
-				if !ok {
-					continue
+				switch contentType {
+				case mkafka.FriendApplyMsg:
+					body := access.FriendApplyMsg{}
+					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					if err != nil {
+						log.Errorf("unmarshal friend notify msg failed, %v", err)
+						continue
+					}
+					ws.m.Lock()
+					c, ok := ws.conns[body.UserId]
+					ws.m.Unlock()
+					if !ok {
+						continue
+					}
+					c.ackQueue.Put(&msg)
+					c.Send(&msg)
+				case mkafka.FriendApplyResultMsg:
+					body := access.FriendApplyResponseMsg{}
+					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					if err != nil {
+						log.Errorf("unmarshal friend notify msg failed, %v", err)
+						continue
+					}
+					ws.m.Lock()
+					c, ok := ws.conns[body.UserId]
+					ws.m.Unlock()
+					if !ok {
+						continue
+					}
+					c.ackQueue.Put(&msg)
+					c.Send(&msg)
+				case mkafka.FriendInfoUpdatedMsg:
+					body := access.FriendUpdatedInfoMsg{}
+					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					if err != nil {
+						log.Errorf("unmarshal friend notify msg failed, %v", err)
+						continue
+					}
+					to := make([]*Conn, 0, len(body.ToId))
+					ws.m.Lock()
+					for _, v := range body.ToId {
+						c, ok := ws.conns[v]
+						if ok {
+							to = append(to, c)
+						}
+					}
+					ws.m.Unlock()
+					for _, c := range to {
+						c.ackQueue.Put(&msg)
+						c.Send(&msg)
+					}
 				}
-				// id, _ := strconv.ParseInt(string(kafkaMsg.Value), 10, 64)
-				// c.friendApplyackQueue.Put(&types.Message{
-				// 	Id: id,
-				// })
-				c.Send(&msg)
-			case mkafka.GroupApplyNotifyTopic:
-				toId, _ := strconv.ParseInt(string(kafkaMsg.Key), 10, 64)
-				msg = types.Message{
-					Type:    mkafka.GroupNotifyMsg,
-					Content: string(kafkaMsg.Value),
+			case mkafka.GroupEventTopic:
+				contentType, _ := strconv.Atoi(string(kafkaMsg.Key))
+				msg = access.Message{
+					Type: int64(contentType),
+					Data: kafkaMsg.Value,
 				}
-				ws.m.Lock()
-				c, ok := ws.conns[toId]
-				ws.m.Unlock()
-				if !ok {
-					continue
+				switch contentType {
+				case mkafka.GroupApplyMsg:
+					body := access.GroupApplyMsg{}
+					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					if err != nil {
+						log.Errorf("unmarshal friend notify msg failed, %v", err)
+						continue
+					}
+					ws.m.Lock()
+					c, ok := ws.conns[body.UserId]
+					ws.m.Unlock()
+					if !ok {
+						continue
+					}
+					c.ackQueue.Put(&msg)
+					c.Send(&msg)
+				case mkafka.GroupAppluResultMsg:
+					body := access.GroupApplyResponseMsg{}
+					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					if err != nil {
+						log.Errorf("unmarshal friend notify msg failed, %v", err)
+						continue
+					}
+					ws.m.Lock()
+					c, ok := ws.conns[body.UserId]
+					ws.m.Unlock()
+					if !ok {
+						continue
+					}
+					c.ackQueue.Put(&msg)
+					c.Send(&msg)
+				case mkafka.GroupInfoUpdatedMsg:
+					body := access.GroupUpdatedInfoMsg{}
+					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					if err != nil {
+						log.Errorf("unmarshal friend notify msg failed, %v", err)
+						continue
+					}
+					to := make([]*Conn, 0, len(body.ToId))
+					ws.m.Lock()
+					for _, v := range body.ToId {
+						c, ok := ws.conns[v]
+						if ok {
+							to = append(to, c)
+						}
+					}
+					ws.m.Unlock()
+					for _, c := range to {
+						c.ackQueue.Put(&msg)
+						c.Send(&msg)
+					}
 				}
-				// id, _ := strconv.ParseInt(string(kafkaMsg.Value), 10, 64)
-				// c.friendApplyackQueue.Put(&types.Message{
-				// 	Id: id,
-				// })
-				c.Send(&msg)
 			default:
 				continue
 			}
@@ -251,7 +339,7 @@ func (ws *WsServer) consume() {
 	}
 	if len(ws.c.Kafka.ConsumerGroup) > 0 {
 		for _, group := range ws.c.Kafka.ConsumerGroup {
-			r := mkafka.NewGroupReader(ws.c.Kafka, group.Group, group.Topic)
+			r := kafka.NewGroupReader(ws.c.Kafka, group.Group, group.Topic)
 			utils.SafeGo(func() {
 				defer r.Close()
 				for {
@@ -271,7 +359,7 @@ func (ws *WsServer) consume() {
 		}
 	}
 	if ws.c.Kafka.Topic != "" {
-		r := mkafka.NewReader(ws.c.Kafka)
+		r := kafka.NewReader(ws.c.Kafka)
 		utils.SafeGo(func() {
 			defer r.Close()
 			for {
@@ -295,6 +383,6 @@ func (ws *WsServer) Stop() {
 	ws.cancel()
 }
 
-func (ws *WsServer) Send(m *kafka.Message) {
+func (ws *WsServer) Send(m *kafkago.Message) {
 	ws.msgCh <- m
 }

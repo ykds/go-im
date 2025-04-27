@@ -7,8 +7,8 @@ import (
 	"go-im/internal/common/middleware/mgrpc"
 	"go-im/internal/pkg/db"
 	"go-im/internal/pkg/etcd"
+	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
-	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
@@ -52,7 +52,7 @@ func main() {
 	defer rdb.Close()
 	db := db.NewDB(c.Mysql)
 	defer db.Close()
-	kafkaWriter := mkafka.NewProducer(c.Kafka)
+	kafkaWriter := kafka.NewProducer(c.Kafka)
 	defer kafkaWriter.Close()
 
 	if c.Prometheus.Enable {

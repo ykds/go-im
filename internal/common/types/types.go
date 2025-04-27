@@ -26,3 +26,19 @@ func (m *Message) Encode() []byte {
 func (m *Message) Decode(b []byte) error {
 	return json.Unmarshal(b, m)
 }
+
+type FriendNewInfoMsg struct {
+	Id       int64  `json:"id"`
+	Avatar   string `json:"avatar,omitempty"`
+	Username string `json:"username,omitempty"`
+	Gender   string `json:"gender,omitempty"`
+}
+
+func (m *FriendNewInfoMsg) Encode() []byte {
+	b, _ := json.Marshal(m)
+	return b
+}
+
+func (m *FriendNewInfoMsg) Decode(b []byte) error {
+	return json.Unmarshal(b, m)
+}

@@ -3,47 +3,53 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"go-im/api/access"
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/access/pkg/ackqueue"
-	"go-im/internal/access/types"
+	"go-im/internal/common/mkafka"
 	"go-im/internal/pkg/log"
-	"go-im/internal/pkg/mkafka"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"google.golang.org/protobuf/proto"
 )
+
+type ReSendMsg struct {
+	Bytes []byte
+	Count int
+}
 
 type Conn struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	userId int64
 	*websocket.Conn
-	wrch                chan []byte
-	svc                 *WsServer
-	hb                  chan struct{}
-	retry               chan *types.Message
-	friendApplyackQueue ackqueue.AckQueue
-	unackMsg            map[int64]*types.ReSendMsg
-	unackMsgMutex       *sync.Mutex
+	wrch          chan []byte
+	svc           *WsServer
+	hb            chan struct{}
+	retry         chan *access.Message
+	ackQueue      ackqueue.AckQueue
+	unackMsg      map[int64]*ReSendMsg
+	unackMsgMutex *sync.Mutex
 }
 
 func newConn(svc *WsServer, userId int64, conn *websocket.Conn) *Conn {
-	retry := make(chan *types.Message, 512)
+	retry := make(chan *access.Message, 512)
 	ctx, cancel := context.WithCancel(svc.ctx)
 	return &Conn{
-		ctx:                 ctx,
-		cancel:              cancel,
-		userId:              userId,
-		Conn:                conn,
-		wrch:                make(chan []byte, 1000),
-		svc:                 svc,
-		hb:                  make(chan struct{}, 1),
-		friendApplyackQueue: *ackqueue.NewAckQueue(100, retry),
-		unackMsg:            make(map[int64]*types.ReSendMsg, 1000),
-		unackMsgMutex:       &sync.Mutex{},
-		retry:               retry,
+		ctx:           ctx,
+		cancel:        cancel,
+		userId:        userId,
+		Conn:          conn,
+		wrch:          make(chan []byte, 1000),
+		svc:           svc,
+		hb:            make(chan struct{}, 1),
+		ackQueue:      *ackqueue.NewAckQueue(100, retry),
+		unackMsg:      make(map[int64]*ReSendMsg, 1000),
+		unackMsgMutex: &sync.Mutex{},
+		retry:         retry,
 	}
 }
 
@@ -68,13 +74,13 @@ func (c *Conn) read() {
 		}
 		switch mt {
 		case websocket.TextMessage:
-			msg := types.Message{}
-			err := msg.Decode(p)
+			msg := access.Message{}
+			err := proto.Unmarshal(p, &msg)
 			if err != nil {
 				log.Errorf("decode message failed, %v", err)
 				return
 			}
-			err = c.dealMessage(msg)
+			err = c.dealMessage(&msg)
 			if err != nil {
 				log.Errorf("deal message failed, %v", err)
 			}
@@ -82,25 +88,32 @@ func (c *Conn) read() {
 	}
 }
 
-func (c *Conn) dealMessage(msg types.Message) error {
-	switch msg.Type {
+func (c *Conn) dealMessage(msg *access.Message) error {
+	switch int(msg.Type) {
 	case mkafka.AckMsg:
-		ack := &types.AckMessage{}
-		err := ack.Decode([]byte(msg.Content))
+		ack := &access.AckMessage{}
+		err := proto.Unmarshal(msg.Data, ack)
 		if err != nil {
 			return err
 		}
-		switch ack.Type {
+		switch int(ack.Type) {
 		case mkafka.FriendApplyMsg:
-			// c.friendApplyackQueue.Ack(ack.Id)
-		case mkafka.FriendApplyResultMsg: // TODO
+			fallthrough
+		case mkafka.FriendApplyResultMsg:
+			fallthrough
+		case mkafka.FriendInfoUpdatedMsg:
+			fallthrough
 		case mkafka.GroupApplyMsg:
+			fallthrough
 		case mkafka.GroupAppluResultMsg:
+			fallthrough
+		case mkafka.GroupInfoUpdatedMsg:
+			c.ackQueue.Ack(*ack.AckId)
 		case mkafka.MessageMsg:
-			c.svc.msgbox.Ack(ack.Kind, ack.SessionId, ack.Seq)
+			c.svc.msgbox.Ack(*ack.Kind, *ack.Id, *ack.Seq)
 			_, err = c.svc.MessageRpc.AckMessage(context.Background(), &message.AckMessageReq{
-				SessionId: ack.SessionId,
-				Seq:       ack.Seq,
+				SessionId: *ack.Id,
+				Seq:       *ack.Seq,
 			})
 			return err
 		}
@@ -112,17 +125,16 @@ func (c *Conn) dealMessage(msg types.Message) error {
 		c.hb <- struct{}{}
 		return nil
 	case mkafka.MessageMsg:
-		req := &types.PollMessageReq{}
-		err := req.Decode([]byte(msg.Content))
+		req := &access.PollMessageReq{}
+		err := proto.Unmarshal(msg.Data, req)
 		if err != nil {
 			return err
 		}
 		msgs := c.svc.msgbox.List(req.Kind, req.SessionId, req.Seq)
-		// TODO if msgs is empty, pull from message server
 		b, _ := json.Marshal(msgs)
-		resp := &types.Message{
-			Type:    mkafka.MessageMsg,
-			Content: string(b),
+		resp := &access.Message{
+			Type: int64(mkafka.MessageMsg),
+			Data: b,
 		}
 		c.Send(resp)
 	}
@@ -165,14 +177,15 @@ func (c *Conn) heartbeat() {
 
 func (c *Conn) reSend() {
 	for msg := range c.retry {
-		c.wrch <- msg.Encode()
+		b, _ := proto.Marshal(msg)
+		c.wrch <- b
 	}
 }
 
 func (c *Conn) Close() {
 	c.cancel()
 	c.Conn.Close()
-	c.friendApplyackQueue.Close()
+	c.ackQueue.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	c.svc.UserRpc.DisConnect(ctx, &user.DisConnectReq{UserId: c.userId})
@@ -181,6 +194,7 @@ func (c *Conn) Close() {
 	c.svc.m.Unlock()
 }
 
-func (c *Conn) Send(msg *types.Message) {
-	c.wrch <- msg.Encode()
+func (c *Conn) Send(msg *access.Message) {
+	b, _ := proto.Marshal(msg)
+	c.wrch <- b
 }

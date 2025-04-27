@@ -2,7 +2,7 @@ package log
 
 import (
 	"log"
-	"math/rand/v2"
+	"math/rand"
 	"net"
 	"testing"
 	"time"
@@ -51,7 +51,7 @@ func TestWriter(t *testing.T) {
 	}
 
 	b := make([]byte, 1024)
-	rand.ChaCha8
+	rand.Read(b)
 	w.Write(b)
 
 	w.Write([]byte("test2"))

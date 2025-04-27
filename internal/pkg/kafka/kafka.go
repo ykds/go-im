@@ -1,4 +1,4 @@
-package mkafka
+package kafka
 
 import (
 	"context"
@@ -7,28 +7,6 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
-)
-
-const (
-	MessageTopic           = "message"
-	GroupApplyNotifyTopic  = "group-apply-notify"
-	FriendApplyNotifyTopic = "apply-friend-notify"
-)
-
-type MsgType int
-
-const (
-	AckMsg       MsgType = 1
-	HeartbeatMsg MsgType = 2
-
-	FriendNotifyMsg      MsgType = 3
-	FriendApplyMsg       MsgType = 4
-	FriendApplyResultMsg MsgType = 5
-	MessageMsg           MsgType = 6
-	NewMessageMsg        MsgType = 7
-	GroupNotifyMsg       MsgType = 8
-	GroupApplyMsg        MsgType = 9
-	GroupAppluResultMsg  MsgType = 10
 )
 
 type (

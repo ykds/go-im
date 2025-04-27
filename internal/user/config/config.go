@@ -4,8 +4,8 @@ import (
 	"go-im/internal/common/jwt"
 	"go-im/internal/pkg/db"
 	"go-im/internal/pkg/etcd"
+	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
-	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
@@ -23,7 +23,7 @@ type Config struct {
 	Server     ServerConfig       `json:"server" yaml:"server"`
 	Mysql      db.Config          `json:"mysql" yaml:"mysql"`
 	Redis      redis.Config       `json:"redis" yaml:"redis"`
-	Kafka      mkafka.Config      `json:"kafka" yaml:"kafka"`
+	Kafka      kafka.Config       `json:"kafka" yaml:"kafka"`
 	JWT        jwt.Config         `json:"jwt" yaml:"jwt"`
 	Log        log.Config         `json:"log" yaml:"log"`
 	Trace      mtrace.Config      `json:"trace" yaml:"trace"`

@@ -4,22 +4,24 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"go-im/api/access"
 	"go-im/api/user"
 	"go-im/internal/common/errcode"
 	"go-im/internal/common/jwt"
+	"go-im/internal/common/mkafka"
 	"go-im/internal/common/types"
 	"go-im/internal/pkg/db"
+	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
-	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/redis"
 	"go-im/internal/user/model"
 	"go-im/internal/user/repository"
 	"time"
 
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
+	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
 
@@ -31,10 +33,10 @@ type Server struct {
 	friendRepository      *repository.FriendRepository
 	friendApplyRepository *repository.FriendApplyRepository
 
-	kafkaWriter *mkafka.Writer
+	kafkaWriter *kafka.Writer
 }
 
-func NewServer(redis *redis.Redis, db *db.DB, kafkaWriter *mkafka.Writer) *Server {
+func NewServer(redis *redis.Redis, db *db.DB, kafkaWriter *kafka.Writer) *Server {
 	return &Server{
 		redis:                 redis,
 		kafkaWriter:           kafkaWriter,
@@ -145,6 +147,7 @@ func (s *Server) UpdateInfo(ctx context.Context, in *user.UpdateInfoReq) (*user.
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
+
 	if in.Avatar != "" {
 		usr.Avatar = in.Avatar
 	}
@@ -156,7 +159,27 @@ func (s *Server) UpdateInfo(ctx context.Context, in *user.UpdateInfoReq) (*user.
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
-	// TODO 查询在线好友，发送更新通知
+
+	onlineUser := make([]int64, 0)
+	friends, err := s.friendRepository.ListFriends(ctx, in.UserId)
+	if err == nil {
+		for _, fd := range friends {
+			if s.isUserOnline(ctx, fd.FriendId) {
+				onlineUser = append(onlineUser, fd.FriendId)
+			}
+		}
+		if len(onlineUser) > 0 {
+			msg := access.FriendUpdatedInfoMsg{
+				FriendId: in.UserId,
+				ToId:     onlineUser,
+			}
+			b, _ := proto.Marshal(&msg)
+			s.kafkaWriter.Send(kafkago.Message{
+				Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendInfoUpdatedMsg),
+				Value: b,
+			})
+		}
+	}
 	return &user.UpdateInfoResp{}, nil
 }
 
@@ -227,12 +250,13 @@ func (s *Server) FriendApply(ctx context.Context, in *user.FriendApplyReq) (*use
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
-	v := map[string]any{
-		"type": mkafka.FriendApplyMsg,
+
+	msg := access.FriendApplyMsg{
+		UserId: apply.FriendId,
 	}
-	b, _ := json.Marshal(v)
-	s.kafkaWriter.Send(kafka.Message{
-		Key:   fmt.Appendf([]byte{}, "%d", apply.FriendId),
+	b, _ := proto.Marshal(&msg)
+	s.kafkaWriter.Send(kafkago.Message{
+		Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendApplyMsg),
 		Value: b,
 	})
 	return &user.FriendApplyResp{}, nil
@@ -255,12 +279,13 @@ func (s *Server) HandleApply(ctx context.Context, in *user.HandleApplyReq) (*use
 			log.Errorf("err: %v", err)
 			return &user.HandleApplyResp{}, errcode.ToRpcError(err)
 		}
-		v := map[string]any{
-			"type": mkafka.FriendApplyResultMsg,
+
+		msg := access.FriendApplyResponseMsg{
+			UserId: apply.UserId,
 		}
-		b, _ := json.Marshal(v)
-		s.kafkaWriter.Send(kafka.Message{
-			Key:   fmt.Appendf([]byte{}, "%d", apply.UserId),
+		b, _ := proto.Marshal(&msg)
+		s.kafkaWriter.Send(kafkago.Message{
+			Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendApplyResultMsg),
 			Value: b,
 		})
 	} else {
@@ -380,4 +405,16 @@ func (s *Server) UpdateFriendInfo(ctx context.Context, in *user.UpdateFriendInfo
 		return nil, errcode.ToRpcError(err)
 	}
 	return &user.UpdateFriendInfoResp{}, nil
+}
+
+func (s *Server) isUserOnline(ctx context.Context, userId int64) bool {
+	key := fmt.Sprintf(types.CacheOnlineKey, userId)
+	ret, err := s.redis.Wrap(ctx, func(ctx context.Context) (any, string, error) {
+		cmd := s.redis.Exists(ctx, key)
+		return cmd.Val(), cmd.String(), cmd.Err()
+	})
+	if err != nil {
+		return false
+	}
+	return ret.(int64) > 0
 }

@@ -1,0 +1,68 @@
+syntax="proto3";
+
+package access;
+option go_package="./access";
+
+message Message {
+   int64 type = 1;
+   bytes data = 2;
+   int64 ack_id = 3;
+}
+
+message MessageBody {
+    int64 id = 1;
+    int64 session_id = 2;
+    int64 from_id = 3;
+    int64 seq = 4;
+    string kind = 5;
+    string content = 7;
+}
+
+message FriendUpdatedInfoMsg {
+    int64 friend_id = 1;
+    repeated int64 to_id = 2;
+}
+
+message FriendApplyMsg {
+    int64 user_id = 1;
+}
+
+message FriendApplyResponseMsg {
+    int64 user_id = 1;
+    string status = 2;
+}
+
+message GroupUpdatedInfoMsg {
+    int64 group_id = 1;
+    repeated int64 to_id = 2;
+}
+
+message GroupApplyMsg {
+    int64 user_id = 1;
+    int64 group_id = 2;
+}
+
+message GroupApplyResponseMsg {
+    int64 user_id = 1;
+    string status = 2;
+}
+
+message AckMessage {
+    int64 type = 1;
+    optional int64 id = 2;
+    optional int64 seq = 3;
+    optional string kind = 4;
+    optional int64 ack_id = 5;
+}
+
+message PollMessageReq {
+    string kind = 1;
+    int64 session_id = 2;
+    int64 seq = 3;
+}
+
+message NewMessageNotifyMsg {
+    string kind = 1;
+    int64 session_id = 2;
+    int64 seq = 3;
+}

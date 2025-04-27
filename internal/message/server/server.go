@@ -2,26 +2,28 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"go-im/api/access"
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/common/errcode"
 	"go-im/internal/common/middleware/mgrpc"
+	"go-im/internal/common/mkafka"
 	"go-im/internal/common/types"
 	"go-im/internal/message/config"
 	"go-im/internal/message/model"
 	"go-im/internal/message/repository"
 	"go-im/internal/pkg/db"
+	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
-	"go-im/internal/pkg/mkafka"
 	"go-im/internal/pkg/redis"
 	"strconv"
 
-	"github.com/segmentio/kafka-go"
+	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
 
@@ -38,10 +40,10 @@ type Server struct {
 
 	userRpc user.UserClient
 
-	kafkaWriter *mkafka.Writer
+	kafkaWriter *kafka.Writer
 }
 
-func NewServer(cfg *config.Config, redis *redis.Redis, db *db.DB, kafkaWriter *mkafka.Writer, userRpcAddr string) *Server {
+func NewServer(cfg *config.Config, redis *redis.Redis, db *db.DB, kafkaWriter *kafka.Writer, userRpcAddr string) *Server {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
@@ -111,12 +113,14 @@ func (s *Server) ApplyInGroup(ctx context.Context, in *message.ApplyInGroupReq) 
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
-	v := map[string]any{
-		"type": mkafka.GroupApplyMsg,
+
+	msg := access.GroupApplyMsg{
+		UserId:  group.OwnerId,
+		GroupId: group.ID,
 	}
-	b, _ := json.Marshal(v)
-	s.kafkaWriter.Send(kafka.Message{
-		Topic: mkafka.GroupApplyNotifyTopic,
+	b, _ := proto.Marshal(&msg)
+	s.kafkaWriter.Send(kafkago.Message{
+		Topic: mkafka.GroupEventTopic,
 		Key:   fmt.Appendf([]byte{}, "%d", group.OwnerId),
 		Value: b,
 	})
@@ -202,6 +206,27 @@ func (s *Server) DismissGroup(ctx context.Context, in *message.DismissGroupReq) 
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
+
+	onlineUser := make([]int64, 0)
+	members, err := s.groupMemberRepository.ListMember(ctx, group.ID)
+	if err == nil {
+		for _, member := range members {
+			if s.isUserOnline(ctx, member.UserId) {
+				onlineUser = append(onlineUser, member.UserId)
+			}
+		}
+		if len(onlineUser) > 0 {
+			msg := access.GroupUpdatedInfoMsg{
+				GroupId: group.ID,
+				ToId:    onlineUser,
+			}
+			b, _ := proto.Marshal(&msg)
+			s.kafkaWriter.Send(kafkago.Message{
+				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupDismissMsg),
+				Value: b,
+			})
+		}
+	}
 	return &message.DismissGroupResp{}, nil
 }
 
@@ -218,6 +243,27 @@ func (s *Server) ExitGroup(ctx context.Context, in *message.ExitGroupReq) (*mess
 	if err != nil {
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
+	}
+
+	onlineUser := make([]int64, 0)
+	members, err := s.groupMemberRepository.ListMember(ctx, in.GroupId)
+	if err == nil {
+		for _, member := range members {
+			if s.isUserOnline(ctx, member.UserId) {
+				onlineUser = append(onlineUser, member.UserId)
+			}
+		}
+		if len(onlineUser) > 0 {
+			msg := access.GroupUpdatedInfoMsg{
+				GroupId: in.GroupId,
+				ToId:    onlineUser,
+			}
+			b, _ := proto.Marshal(&msg)
+			s.kafkaWriter.Send(kafkago.Message{
+				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
+				Value: b,
+			})
+		}
 	}
 	return &message.ExitGroupResp{}, nil
 }
@@ -236,13 +282,15 @@ func (s *Server) HandleGroupApply(ctx context.Context, in *message.HandleGroupAp
 		log.Errorf("err: %v", err)
 		return &message.HandleGroupApplyResp{}, errcode.ToRpcError(err)
 	}
-	v := map[string]any{
-		"type": mkafka.GroupAppluResultMsg,
+
+	msg := access.GroupApplyResponseMsg{
+		UserId: apply.UserId,
+		Status: in.Status,
 	}
-	b, _ := json.Marshal(v)
-	s.kafkaWriter.Send(kafka.Message{
-		Topic: mkafka.GroupApplyNotifyTopic,
-		Key:   fmt.Appendf([]byte{}, "%d", apply.UserId),
+	b, _ := proto.Marshal(&msg)
+	s.kafkaWriter.Send(kafkago.Message{
+		Topic: mkafka.GroupEventTopic,
+		Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupAppluResultMsg),
 		Value: b,
 	})
 	return &message.HandleGroupApplyResp{}, nil
@@ -261,6 +309,27 @@ func (s *Server) InviteMember(ctx context.Context, in *message.InviteMemberReq) 
 	if err != nil {
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
+	}
+
+	onlineUser := make([]int64, 0)
+	members, err := s.groupMemberRepository.ListMember(ctx, in.GroupId)
+	if err == nil {
+		for _, member := range members {
+			if s.isUserOnline(ctx, member.UserId) {
+				onlineUser = append(onlineUser, member.UserId)
+			}
+		}
+		if len(onlineUser) > 0 {
+			msg := access.GroupUpdatedInfoMsg{
+				GroupId: in.GroupId,
+				ToId:    onlineUser,
+			}
+			b, _ := proto.Marshal(&msg)
+			s.kafkaWriter.Send(kafkago.Message{
+				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
+				Value: b,
+			})
+		}
 	}
 	return &message.InviteMemberResp{}, nil
 }
@@ -520,6 +589,27 @@ func (s *Server) MoveOutMember(ctx context.Context, in *message.MoveOutMemberReq
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
 	}
+
+	onlineUser := make([]int64, 0)
+	members, err := s.groupMemberRepository.ListMember(ctx, in.GroupId)
+	if err == nil {
+		for _, member := range members {
+			if s.isUserOnline(ctx, member.UserId) {
+				onlineUser = append(onlineUser, member.UserId)
+			}
+		}
+		if len(onlineUser) > 0 {
+			msg := access.GroupUpdatedInfoMsg{
+				GroupId: in.GroupId,
+				ToId:    onlineUser,
+			}
+			b, _ := proto.Marshal(&msg)
+			s.kafkaWriter.Send(kafkago.Message{
+				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
+				Value: b,
+			})
+		}
+	}
 	return &message.MoveOutMemberResp{}, nil
 }
 
@@ -610,7 +700,7 @@ func (s *Server) SendMessage(ctx context.Context, in *message.SendMessageReq) (*
 }
 
 func (s *Server) sendKafka(toId int64, kind string, b []byte) {
-	s.kafkaWriter.Send(kafka.Message{
+	s.kafkaWriter.Send(kafkago.Message{
 		Topic: mkafka.MessageTopic,
 		Key:   fmt.Appendf([]byte{}, "%s-%d", kind, toId),
 		Value: b,
@@ -720,6 +810,27 @@ func (s *Server) UpdateGroupInfo(ctx context.Context, in *message.UpdateGroupInf
 	if err != nil {
 		log.Errorf("err: %v", err)
 		return nil, errcode.ToRpcError(err)
+	}
+
+	onlineUser := make([]int64, 0)
+	members, err := s.groupMemberRepository.ListMember(ctx, group.ID)
+	if err == nil {
+		for _, member := range members {
+			if s.isUserOnline(ctx, member.UserId) {
+				onlineUser = append(onlineUser, member.UserId)
+			}
+		}
+		if len(onlineUser) > 0 {
+			msg := access.GroupUpdatedInfoMsg{
+				GroupId: group.ID,
+				ToId:    onlineUser,
+			}
+			b, _ := proto.Marshal(&msg)
+			s.kafkaWriter.Send(kafkago.Message{
+				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupInfoUpdatedMsg),
+				Value: b,
+			})
+		}
 	}
 	return &message.UpdateGroupInfoResp{}, nil
 }
