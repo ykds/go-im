@@ -10,7 +10,7 @@ import (
 func BenchmarkMarshJson(b *testing.B) {
 	a := access.Message{
 		Type:  1,
-		Data:  []byte("faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565"),
+		Data:  "faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565",
 		AckId: 0,
 	}
 	for b.Loop() {
@@ -24,7 +24,7 @@ func BenchmarkMarshJson(b *testing.B) {
 func BenchmarkMarshProto(b *testing.B) {
 	a := access.Message{
 		Type:  1,
-		Data:  []byte("faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565"),
+		Data:  "faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565",
 		AckId: 0,
 	}
 	for b.Loop() {
@@ -38,7 +38,7 @@ func BenchmarkMarshProto(b *testing.B) {
 func BenchmarkUnMarshJson(b *testing.B) {
 	a := access.Message{
 		Type:  1,
-		Data:  []byte("faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565"),
+		Data:  "faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565",
 		AckId: 0,
 	}
 	c, err := Marshal(&a)
@@ -55,7 +55,7 @@ func BenchmarkUnMarshJson(b *testing.B) {
 func BenchmarkUnMarshProto(b *testing.B) {
 	a := access.Message{
 		Type:  1,
-		Data:  []byte("faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565"),
+		Data:  "faregsfaregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565faregsrgsrgs4235363565rgsrgs4235363565",
 		AckId: 0,
 	}
 	c, err := proto.Marshal(&a)

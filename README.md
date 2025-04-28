@@ -111,9 +111,13 @@ Linux 环境：
 >
 > 创建Topic:
 >
-> kafka-topics.sh --bootstrap-server localhost:9200 --create --partitions 1 --replicatoin-factor 1 --topic topic-name
+> kafka-topics.sh --bootstrap-server localhost:9200 --create --partitions 1 --replicatoin-factor 1 --topic message
+> 
+> kafka-topics.sh --bootstrap-server localhost:9200 --create --partitions 1 --replicatoin-factor 1 --topic friend-event
+> 
+> kafka-topics.sh --bootstrap-server localhost:9200 --create --partitions 1 --replicatoin-factor 1 --topic group-event
 >
-> topic-name 替换成`cmd/access/config.yaml`中`kafka`配置中对应的`topic`
+
 #### 运行Redis、Jaeger、etcd
 > docker compose -f other.yaml up -d
 >

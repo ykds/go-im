@@ -2,18 +2,18 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"go-im/api/access"
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/access/pkg/ackqueue"
 	"go-im/internal/common/mkafka"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mjson"
+	"go-im/internal/pkg/utils"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"google.golang.org/protobuf/proto"
 )
 
 type ReSendMsg struct {
@@ -54,10 +54,18 @@ func newConn(svc *WsServer, userId int64, conn *websocket.Conn) *Conn {
 }
 
 func (c *Conn) run() {
-	go c.read()
-	go c.write()
-	go c.heartbeat()
-	go c.reSend()
+	utils.SafeGo(func() {
+		c.read()
+	})
+	utils.SafeGo(func() {
+		c.write()
+	})
+	utils.SafeGo(func() {
+		c.heartbeat()
+	})
+	utils.SafeGo(func() {
+		c.reSend()
+	})
 }
 
 func (c *Conn) read() {
@@ -75,7 +83,7 @@ func (c *Conn) read() {
 		switch mt {
 		case websocket.TextMessage:
 			msg := access.Message{}
-			err := proto.Unmarshal(p, &msg)
+			err := mjson.Unmarshal(p, &msg)
 			if err != nil {
 				log.Errorf("decode message failed, %v", err)
 				return
@@ -92,7 +100,7 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 	switch int(msg.Type) {
 	case mkafka.AckMsg:
 		ack := &access.AckMessage{}
-		err := proto.Unmarshal(msg.Data, ack)
+		err := mjson.Unmarshal([]byte(msg.Data), ack)
 		if err != nil {
 			return err
 		}
@@ -108,9 +116,15 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 		case mkafka.GroupAppluResultMsg:
 			fallthrough
 		case mkafka.GroupInfoUpdatedMsg:
-			c.ackQueue.Ack(*ack.AckId)
+			fallthrough
+		case mkafka.NewMessageMsg:
+			if ack.AckId != nil {
+				c.ackQueue.Ack(*ack.AckId)
+			}
 		case mkafka.MessageMsg:
-			c.svc.msgbox.Ack(*ack.Kind, *ack.Id, *ack.Seq)
+			if ack.Kind != nil && ack.Id != nil && ack.Seq != nil {
+				c.svc.msgbox.Ack(*ack.Kind, *ack.Id, *ack.Seq)
+			}
 			_, err = c.svc.MessageRpc.AckMessage(context.Background(), &message.AckMessageReq{
 				SessionId: *ack.Id,
 				Seq:       *ack.Seq,
@@ -126,15 +140,15 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 		return nil
 	case mkafka.MessageMsg:
 		req := &access.PollMessageReq{}
-		err := proto.Unmarshal(msg.Data, req)
+		err := mjson.Unmarshal([]byte(msg.Data), req)
 		if err != nil {
 			return err
 		}
 		msgs := c.svc.msgbox.List(req.Kind, req.SessionId, req.Seq)
-		b, _ := json.Marshal(msgs)
+		b, _ := mjson.Marshal(msgs)
 		resp := &access.Message{
 			Type: int64(mkafka.MessageMsg),
-			Data: b,
+			Data: string(b),
 		}
 		c.Send(resp)
 	}
@@ -177,7 +191,7 @@ func (c *Conn) heartbeat() {
 
 func (c *Conn) reSend() {
 	for msg := range c.retry {
-		b, _ := proto.Marshal(msg)
+		b, _ := mjson.Marshal(msg)
 		c.wrch <- b
 	}
 }
@@ -195,6 +209,6 @@ func (c *Conn) Close() {
 }
 
 func (c *Conn) Send(msg *access.Message) {
-	b, _ := proto.Marshal(msg)
+	b, _ := mjson.Marshal(msg)
 	c.wrch <- b
 }

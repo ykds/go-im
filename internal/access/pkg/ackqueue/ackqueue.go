@@ -51,7 +51,7 @@ func NewAckQueue(timeout time.Duration, retry chan *access.Message) *AckQueue {
 		head:     &node{},
 		entryMap: make(map[int64]*node, 1000),
 		retry:    retry,
-		timeout:  timeout,
+		timeout:  timeout * time.Millisecond,
 		mutex:    &sync.Mutex{},
 		cond:     &sync.Cond{},
 	}
@@ -96,7 +96,6 @@ func (a *AckQueue) Put(msg *access.Message) {
 		id:     ackId,
 	}
 	msg.AckId = ackId
-	a.entryMap[ackId] = e
 	if a.tail == nil {
 		a.head.next = e
 		e.pre = a.head
@@ -106,6 +105,7 @@ func (a *AckQueue) Put(msg *access.Message) {
 		e.pre = a.tail
 		a.tail = e
 	}
+	a.entryMap[ackId] = e
 }
 
 func (a *AckQueue) run() {
@@ -127,27 +127,44 @@ func (a *AckQueue) run() {
 		if n.next != nil {
 			n.next.pre = a.head
 		}
+		n.pre = nil
+		n.next = nil
 		a.cond.L.Unlock()
+
+		<-n.t.C
 		select {
 		case <-n.ctx.Done():
+			continue
+		default:
+		}
+		a.retry <- n.msg
+		n.retryCount++
+		if n.retryCount >= 3 {
 			n.t.Stop()
 			timepool.Put(n.t)
+			a.cond.L.Lock()
 			delete(a.entryMap, n.id)
-		case <-n.t.C:
-			a.retry <- n.msg
-			n.retryCount++
-			if n.retryCount >= 3 {
-				n.t.Stop()
-				timepool.Put(n.t)
-				delete(a.entryMap, n.id)
+			a.cond.L.Unlock()
+		} else {
+			a.cond.L.Lock()
+			select {
+			case <-n.ctx.Done():
+				continue
+			default:
+			}
+			n.t.Reset(a.timeout)
+			if a.tail == nil {
+				a.tail = n
+				if a.head.next == nil {
+					a.head.next = n
+					n.pre = a.head
+				}
 			} else {
-				a.cond.L.Lock()
-				n.t.Reset(a.timeout)
 				a.tail.next = n
 				n.pre = a.tail
 				a.tail = n
-				a.cond.L.Unlock()
 			}
+			a.cond.L.Unlock()
 		}
 	}
 
@@ -167,6 +184,10 @@ func (a *AckQueue) Ack(ackId int64) {
 	e.cancel()
 	e.t.Stop()
 	timepool.Put(e.t)
+	delete(a.entryMap, e.id)
+	if e.next == nil && e.pre == nil {
+		return
+	}
 	e.pre.next = e.next
 	if e.next != nil {
 		e.next.pre = e.pre

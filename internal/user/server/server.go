@@ -15,13 +15,13 @@ import (
 	"go-im/internal/pkg/db"
 	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mjson"
 	"go-im/internal/pkg/redis"
 	"go-im/internal/user/model"
 	"go-im/internal/user/repository"
 	"time"
 
 	kafkago "github.com/segmentio/kafka-go"
-	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
 
@@ -173,7 +173,7 @@ func (s *Server) UpdateInfo(ctx context.Context, in *user.UpdateInfoReq) (*user.
 				FriendId: in.UserId,
 				ToId:     onlineUser,
 			}
-			b, _ := proto.Marshal(&msg)
+			b, _ := mjson.Marshal(&msg)
 			s.kafkaWriter.Send(kafkago.Message{
 				Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendInfoUpdatedMsg),
 				Value: b,
@@ -254,7 +254,7 @@ func (s *Server) FriendApply(ctx context.Context, in *user.FriendApplyReq) (*use
 	msg := access.FriendApplyMsg{
 		UserId: apply.FriendId,
 	}
-	b, _ := proto.Marshal(&msg)
+	b, _ := mjson.Marshal(&msg)
 	s.kafkaWriter.Send(kafkago.Message{
 		Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendApplyMsg),
 		Value: b,
@@ -283,7 +283,7 @@ func (s *Server) HandleApply(ctx context.Context, in *user.HandleApplyReq) (*use
 		msg := access.FriendApplyResponseMsg{
 			UserId: apply.UserId,
 		}
-		b, _ := proto.Marshal(&msg)
+		b, _ := mjson.Marshal(&msg)
 		s.kafkaWriter.Send(kafkago.Message{
 			Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendApplyResultMsg),
 			Value: b,
@@ -323,8 +323,14 @@ func (s *Server) ListApply(ctx context.Context, in *user.ListApplyReq) (*user.Li
 	}
 	resp := make([]*user.ApplyInfo, 0)
 	for _, apply := range list {
+		fdId := 0
+		if apply.UserId == in.UserId {
+			fdId = int(apply.FriendId)
+		} else {
+			fdId = int(apply.UserId)
+		}
 		// TODO 优化批量获取
-		fd, err := s.userRepository.FindOne(ctx, int64(apply.FriendId))
+		fd, err := s.userRepository.FindOne(ctx, int64(fdId))
 		if err != nil {
 			log.Errorf("err: %v", err)
 			return nil, errcode.ToRpcError(err)

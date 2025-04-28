@@ -5,7 +5,7 @@ option go_package="./access";
 
 message Message {
    int64 type = 1;
-   bytes data = 2;
+   string data = 2;
    int64 ack_id = 3;
 }
 

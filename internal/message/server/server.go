@@ -17,13 +17,13 @@ import (
 	"go-im/internal/pkg/db"
 	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mjson"
 	"go-im/internal/pkg/redis"
 	"strconv"
 
 	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/proto"
 	"gorm.io/gorm"
 )
 
@@ -118,7 +118,7 @@ func (s *Server) ApplyInGroup(ctx context.Context, in *message.ApplyInGroupReq) 
 		UserId:  group.OwnerId,
 		GroupId: group.ID,
 	}
-	b, _ := proto.Marshal(&msg)
+	b, _ := mjson.Marshal(&msg)
 	s.kafkaWriter.Send(kafkago.Message{
 		Topic: mkafka.GroupEventTopic,
 		Key:   fmt.Appendf([]byte{}, "%d", group.OwnerId),
@@ -220,7 +220,7 @@ func (s *Server) DismissGroup(ctx context.Context, in *message.DismissGroupReq) 
 				GroupId: group.ID,
 				ToId:    onlineUser,
 			}
-			b, _ := proto.Marshal(&msg)
+			b, _ := mjson.Marshal(&msg)
 			s.kafkaWriter.Send(kafkago.Message{
 				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupDismissMsg),
 				Value: b,
@@ -258,7 +258,7 @@ func (s *Server) ExitGroup(ctx context.Context, in *message.ExitGroupReq) (*mess
 				GroupId: in.GroupId,
 				ToId:    onlineUser,
 			}
-			b, _ := proto.Marshal(&msg)
+			b, _ := mjson.Marshal(&msg)
 			s.kafkaWriter.Send(kafkago.Message{
 				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
 				Value: b,
@@ -287,7 +287,7 @@ func (s *Server) HandleGroupApply(ctx context.Context, in *message.HandleGroupAp
 		UserId: apply.UserId,
 		Status: in.Status,
 	}
-	b, _ := proto.Marshal(&msg)
+	b, _ := mjson.Marshal(&msg)
 	s.kafkaWriter.Send(kafkago.Message{
 		Topic: mkafka.GroupEventTopic,
 		Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupAppluResultMsg),
@@ -324,7 +324,7 @@ func (s *Server) InviteMember(ctx context.Context, in *message.InviteMemberReq) 
 				GroupId: in.GroupId,
 				ToId:    onlineUser,
 			}
-			b, _ := proto.Marshal(&msg)
+			b, _ := mjson.Marshal(&msg)
 			s.kafkaWriter.Send(kafkago.Message{
 				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
 				Value: b,
@@ -603,7 +603,7 @@ func (s *Server) MoveOutMember(ctx context.Context, in *message.MoveOutMemberReq
 				GroupId: in.GroupId,
 				ToId:    onlineUser,
 			}
-			b, _ := proto.Marshal(&msg)
+			b, _ := mjson.Marshal(&msg)
 			s.kafkaWriter.Send(kafkago.Message{
 				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
 				Value: b,
@@ -685,17 +685,16 @@ func (s *Server) SendMessage(ctx context.Context, in *message.SendMessageReq) (*
 			return nil, nil
 		}
 	}
-	msg2 := types.Message{
+	msg2 := access.MessageBody{
 		Id:        msgId,
 		SessionId: sessionId,
 		FromId:    msg.FromId,
-		ToId:      msg.ToId,
 		Content:   msg.Content,
 		Seq:       msg.Seq,
 		Kind:      msg.Kind,
-		CreatedAt: msg.CreatedAt.Unix(),
 	}
-	s.sendKafka(in.ToId, in.Kind, msg2.Encode())
+	b, _ := mjson.Marshal(&msg2)
+	s.sendKafka(in.ToId, in.Kind, b)
 	return &message.SendMessageResp{}, nil
 }
 
@@ -825,7 +824,7 @@ func (s *Server) UpdateGroupInfo(ctx context.Context, in *message.UpdateGroupInf
 				GroupId: group.ID,
 				ToId:    onlineUser,
 			}
-			b, _ := proto.Marshal(&msg)
+			b, _ := mjson.Marshal(&msg)
 			s.kafkaWriter.Send(kafkago.Message{
 				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupInfoUpdatedMsg),
 				Value: b,

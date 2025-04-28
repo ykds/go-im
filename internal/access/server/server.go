@@ -10,6 +10,7 @@ import (
 	"go-im/internal/common/mkafka"
 	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mjson"
 	"go-im/internal/pkg/utils"
 	"strconv"
 	"strings"
@@ -22,7 +23,6 @@ import (
 	kafkago "github.com/segmentio/kafka-go"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/proto"
 )
 
 var upgrader = websocket.Upgrader{
@@ -133,7 +133,7 @@ func (ws *WsServer) handleMsg() {
 				toIdStr := split[1]
 				toId, _ := strconv.ParseInt(toIdStr, 10, 64)
 				msgBody := access.MessageBody{}
-				err := proto.Unmarshal(kafkaMsg.Value, &msgBody)
+				err := mjson.Unmarshal(kafkaMsg.Value, &msgBody)
 				if err != nil {
 					log.Errorf("decode msg failed, err: %v", err)
 					continue
@@ -151,7 +151,7 @@ func (ws *WsServer) handleMsg() {
 					}
 
 					msgBody := access.MessageBody{}
-					err = proto.Unmarshal(kafkaMsg.Value, &msgBody)
+					err = mjson.Unmarshal(kafkaMsg.Value, &msgBody)
 					if err != nil {
 						log.Errorf("unmarshal msg failed, %v", err)
 						continue
@@ -162,7 +162,7 @@ func (ws *WsServer) handleMsg() {
 					}
 					msg = access.Message{
 						Type: int64(mkafka.MessageMsg),
-						Data: kafkaMsg.Value,
+						Data: string(kafkaMsg.Value),
 					}
 					ws.m.Lock()
 					for _, member := range resp.Members {
@@ -173,10 +173,10 @@ func (ws *WsServer) handleMsg() {
 						ws.msgbox.Append(&msg, &msgBody, len(resp.Members))
 						c, ok := ws.conns[member.Id]
 						if ok {
-							b, _ := proto.Marshal(content)
+							b, _ := mjson.Marshal(content)
 							c.Send(&access.Message{
 								Type: int64(mkafka.NewMessageMsg),
-								Data: b,
+								Data: string(b),
 							})
 						}
 					}
@@ -184,10 +184,10 @@ func (ws *WsServer) handleMsg() {
 				case "single":
 					msg = access.Message{
 						Type: int64(mkafka.MessageMsg),
-						Data: kafkaMsg.Value,
+						Data: string(kafkaMsg.Value),
 					}
 					msgBody := access.MessageBody{}
-					err = proto.Unmarshal(kafkaMsg.Value, &msgBody)
+					err = mjson.Unmarshal(kafkaMsg.Value, &msgBody)
 					if err != nil {
 						log.Errorf("unmarshal msg failed, %v", err)
 						continue
@@ -204,22 +204,25 @@ func (ws *WsServer) handleMsg() {
 					if !ok {
 						continue
 					}
-					b, _ := proto.Marshal(content)
-					c.Send(&access.Message{
+
+					b, _ := mjson.Marshal(content)
+					msg := &access.Message{
 						Type: int64(mkafka.NewMessageMsg),
-						Data: b,
-					})
+						Data: string(b),
+					}
+					c.ackQueue.Put(msg)
+					c.Send(msg)
 				}
 			case mkafka.FriendEventTopic:
 				contentType, _ := strconv.Atoi(string(kafkaMsg.Key))
 				msg = access.Message{
 					Type: int64(contentType),
-					Data: kafkaMsg.Value,
+					Data: string(kafkaMsg.Value),
 				}
 				switch contentType {
 				case mkafka.FriendApplyMsg:
 					body := access.FriendApplyMsg{}
-					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					err := mjson.Unmarshal(kafkaMsg.Value, &body)
 					if err != nil {
 						log.Errorf("unmarshal friend notify msg failed, %v", err)
 						continue
@@ -234,7 +237,7 @@ func (ws *WsServer) handleMsg() {
 					c.Send(&msg)
 				case mkafka.FriendApplyResultMsg:
 					body := access.FriendApplyResponseMsg{}
-					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					err := mjson.Unmarshal(kafkaMsg.Value, &body)
 					if err != nil {
 						log.Errorf("unmarshal friend notify msg failed, %v", err)
 						continue
@@ -249,7 +252,7 @@ func (ws *WsServer) handleMsg() {
 					c.Send(&msg)
 				case mkafka.FriendInfoUpdatedMsg:
 					body := access.FriendUpdatedInfoMsg{}
-					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					err := mjson.Unmarshal(kafkaMsg.Value, &body)
 					if err != nil {
 						log.Errorf("unmarshal friend notify msg failed, %v", err)
 						continue
@@ -272,12 +275,12 @@ func (ws *WsServer) handleMsg() {
 				contentType, _ := strconv.Atoi(string(kafkaMsg.Key))
 				msg = access.Message{
 					Type: int64(contentType),
-					Data: kafkaMsg.Value,
+					Data: string(kafkaMsg.Value),
 				}
 				switch contentType {
 				case mkafka.GroupApplyMsg:
 					body := access.GroupApplyMsg{}
-					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					err := mjson.Unmarshal(kafkaMsg.Value, &body)
 					if err != nil {
 						log.Errorf("unmarshal friend notify msg failed, %v", err)
 						continue
@@ -292,7 +295,7 @@ func (ws *WsServer) handleMsg() {
 					c.Send(&msg)
 				case mkafka.GroupAppluResultMsg:
 					body := access.GroupApplyResponseMsg{}
-					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					err := mjson.Unmarshal(kafkaMsg.Value, &body)
 					if err != nil {
 						log.Errorf("unmarshal friend notify msg failed, %v", err)
 						continue
@@ -307,7 +310,7 @@ func (ws *WsServer) handleMsg() {
 					c.Send(&msg)
 				case mkafka.GroupInfoUpdatedMsg:
 					body := access.GroupUpdatedInfoMsg{}
-					err := proto.Unmarshal(kafkaMsg.Value, &body)
+					err := mjson.Unmarshal(kafkaMsg.Value, &body)
 					if err != nil {
 						log.Errorf("unmarshal friend notify msg failed, %v", err)
 						continue

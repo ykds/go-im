@@ -7,10 +7,12 @@ import (
 )
 
 func SafeGo(f func()) {
-	defer func() {
-		if e := recover(); e != nil {
-			logx.Errorf("panic: %+v, Stack: %v", e, debug.Stack())
-		}
+	go func() {
+		defer func() {
+			if e := recover(); e != nil {
+				logx.Errorf("panic: %+v, Stack: %v", e, string(debug.Stack()))
+			}
+		}()
+		f()
 	}()
-	go f()
 }
