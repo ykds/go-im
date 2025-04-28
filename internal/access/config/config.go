@@ -18,6 +18,7 @@ import (
 type ServerConfig struct {
 	Addr  string `json:"addr" yaml:"addr"`
 	Debug bool   `json:"debug" yaml:"debug"`
+	Pprof bool   `json:"pprof" yaml:"pprof"`
 }
 
 type GrpcClient struct {

@@ -9,6 +9,7 @@ import (
 	"go-im/internal/pkg/etcd"
 	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mpprof"
 	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
@@ -83,6 +84,9 @@ func main() {
 
 	if c.Server.Addr == "" {
 		c.Server.Addr = "0.0.0.0:8000"
+	}
+	if c.Server.Pprof {
+		mpprof.RegisterPprof()
 	}
 	listen, err := net.Listen("tcp", c.Server.Addr)
 	if err != nil {

@@ -6,12 +6,14 @@ import (
 	"go-im/internal/common/jwt"
 	"go-im/internal/common/middleware/mhttp"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mpprof"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
 	"go-im/internal/seqserver/config"
 	"go-im/internal/seqserver/logic"
 	"go-im/internal/seqserver/pkg/seqserver"
 	"go-im/internal/seqserver/server"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -36,6 +38,7 @@ func main() {
 	rdb := redis.NewRedis(c.Redis)
 	defer rdb.Close()
 
+	gin.DefaultWriter = io.Discard
 	if c.Server.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -51,6 +54,9 @@ func main() {
 	}
 	if c.Prometheus.Enable {
 		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
+	if c.Server.Pprof {
+		mpprof.RegisterPprof()
 	}
 	api := engine.Group("/api")
 

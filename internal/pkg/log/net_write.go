@@ -1,7 +1,6 @@
 package log
 
 import (
-	"go-im/internal/pkg/utils"
 	"io"
 	"log"
 	"net"
@@ -72,7 +71,7 @@ func NewNetWriter(conn net.Conn, opts ...Option) *NetWriter {
 	for _, opt := range opts {
 		opt(w)
 	}
-	utils.SafeGo(func() {
+	go func() {
 		if w.batchTimeout <= 0 {
 			return
 		}
@@ -96,7 +95,7 @@ func NewNetWriter(conn net.Conn, opts ...Option) *NetWriter {
 				w.m.Unlock()
 			}
 		}
-	})
+	}()
 	return w
 }
 

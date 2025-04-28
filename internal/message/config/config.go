@@ -16,8 +16,9 @@ import (
 )
 
 type ServerConfig struct {
-	Addr string      `json:"addr" yaml:"addr"`
-	Etcd etcd.Config `json:"etcd" yaml:"etcd"`
+	Addr  string      `json:"addr" yaml:"addr"`
+	Etcd  etcd.Config `json:"etcd" yaml:"etcd"`
+	Pprof bool        `json:"pprof" yaml:"pprof"`
 }
 
 type GrpcClient struct {

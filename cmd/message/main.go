@@ -10,6 +10,7 @@ import (
 	"go-im/internal/pkg/etcd"
 	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mpprof"
 	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
@@ -44,6 +45,9 @@ func main() {
 		}
 		defer cli.Close()
 		defer cli.UnRegister(c.Server.Etcd.Key)
+	}
+	if c.Server.Pprof {
+		mpprof.RegisterPprof()
 	}
 
 	rdb := redis.NewRedis(c.Redis)

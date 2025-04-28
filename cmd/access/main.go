@@ -8,7 +8,9 @@ import (
 	"go-im/internal/common/jwt"
 	"go-im/internal/common/middleware/mhttp"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mpprof"
 	"go-im/internal/pkg/mtrace"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,6 +43,7 @@ func main() {
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
+	gin.DefaultWriter = io.Discard
 	engine := gin.New()
 	engine.Use(gin.RecoveryWithWriter(log.Output()), mhttp.Cors())
 	if c.Trace.Enable {
@@ -51,6 +54,9 @@ func main() {
 	}
 	if c.Prometheus.Enable {
 		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
+	if c.Server.Pprof {
+		mpprof.RegisterPprof()
 	}
 	engine.GET("/ws", mhttp.AuthMiddleware(), wsServer.Handler)
 	svc := http.Server{

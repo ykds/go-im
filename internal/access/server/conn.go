@@ -33,6 +33,8 @@ type Conn struct {
 	ackQueue      ackqueue.AckQueue
 	unackMsg      map[int64]*ReSendMsg
 	unackMsgMutex *sync.Mutex
+	acked         int64
+	pollMutext    *sync.Mutex
 }
 
 func newConn(svc *WsServer, userId int64, conn *websocket.Conn) *Conn {
@@ -50,6 +52,7 @@ func newConn(svc *WsServer, userId int64, conn *websocket.Conn) *Conn {
 		unackMsg:      make(map[int64]*ReSendMsg, 1000),
 		unackMsgMutex: &sync.Mutex{},
 		retry:         retry,
+		pollMutext:    &sync.Mutex{},
 	}
 }
 
@@ -123,7 +126,12 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 			}
 		case mkafka.MessageMsg:
 			if ack.Kind != nil && ack.Id != nil && ack.Seq != nil {
-				c.svc.msgbox.Ack(*ack.Kind, *ack.Id, *ack.Seq)
+				c.pollMutext.Lock()
+				if *ack.Seq > c.acked {
+					c.svc.msgbox.Ack(*ack.Kind, *ack.Id, *ack.Seq)
+					c.acked = *ack.Seq
+				}
+				c.pollMutext.Unlock()
 			}
 			_, err = c.svc.MessageRpc.AckMessage(context.Background(), &message.AckMessageReq{
 				SessionId: *ack.Id,
@@ -142,6 +150,7 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 		req := &access.PollMessageReq{}
 		err := mjson.Unmarshal([]byte(msg.Data), req)
 		if err != nil {
+			c.pollMutext.Unlock()
 			return err
 		}
 		msgs := c.svc.msgbox.List(req.Kind, req.SessionId, req.Seq)

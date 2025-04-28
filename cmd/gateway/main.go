@@ -9,7 +9,9 @@ import (
 	"go-im/internal/gateway/logic"
 	"go-im/internal/gateway/server"
 	"go-im/internal/pkg/log"
+	"go-im/internal/pkg/mpprof"
 	"go-im/internal/pkg/mtrace"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -32,6 +34,7 @@ func main() {
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
 
+	gin.DefaultWriter = io.Discard
 	engine := gin.New()
 	engine.Use(gin.Recovery(), gin.RecoveryWithWriter(log.Output()), mhttp.Cors())
 	if c.Trace.Enable {
@@ -45,6 +48,9 @@ func main() {
 	}
 	if c.Prometheus.Enable {
 		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
+	if c.Server.Pprof {
+		mpprof.RegisterPprof()
 	}
 	engine.Static("/static", c.Server.Static)
 
