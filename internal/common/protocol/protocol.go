@@ -1,4 +1,4 @@
-package mkafka
+package protocol
 
 const (
 	MessageTopic     = "message"
@@ -23,3 +23,9 @@ const (
 	GroupDismissMsg      int = 11
 	GroupMemberChangeMsg int = 12
 )
+
+type PushBody struct {
+	Type string
+	Key  []byte
+	Body []byte
+}

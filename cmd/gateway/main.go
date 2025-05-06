@@ -34,13 +34,17 @@ func main() {
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
 
+	if c.Pprof {
+		mpprof.RegisterPprof()
+	}
+
 	gin.DefaultWriter = io.Discard
 	engine := gin.New()
 	engine.Use(gin.Recovery(), gin.RecoveryWithWriter(log.Output()), mhttp.Cors())
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
 	}
-	if c.Server.Debug {
+	if c.Debug {
 		pprof.Register(engine)
 		gin.SetMode(gin.DebugMode)
 	} else {
@@ -49,9 +53,7 @@ func main() {
 	if c.Prometheus.Enable {
 		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	}
-	if c.Server.Pprof {
-		mpprof.RegisterPprof()
-	}
+
 	engine.Static("/static", c.Server.Static)
 
 	api := engine.Group("/api")
@@ -73,7 +75,7 @@ func main() {
 	uploadApi.RegisterRouter(api)
 
 	if c.Server.Addr == "" {
-		c.Server.Addr = "0.0.0.0:8003"
+		c.Server.Addr = "0.0.0.0:9000"
 	}
 	svc := http.Server{
 		Addr:    c.Server.Addr,

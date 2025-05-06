@@ -6,7 +6,7 @@ import (
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/access/pkg/ackqueue"
-	"go-im/internal/common/mkafka"
+	"go-im/internal/common/protocol"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mjson"
 	"go-im/internal/pkg/utils"
@@ -101,30 +101,30 @@ func (c *Conn) read() {
 
 func (c *Conn) dealMessage(msg *access.Message) error {
 	switch int(msg.Type) {
-	case mkafka.AckMsg:
+	case protocol.AckMsg:
 		ack := &access.AckMessage{}
 		err := mjson.Unmarshal([]byte(msg.Data), ack)
 		if err != nil {
 			return err
 		}
 		switch int(ack.Type) {
-		case mkafka.FriendApplyMsg:
+		case protocol.FriendApplyMsg:
 			fallthrough
-		case mkafka.FriendApplyResultMsg:
+		case protocol.FriendApplyResultMsg:
 			fallthrough
-		case mkafka.FriendInfoUpdatedMsg:
+		case protocol.FriendInfoUpdatedMsg:
 			fallthrough
-		case mkafka.GroupApplyMsg:
+		case protocol.GroupApplyMsg:
 			fallthrough
-		case mkafka.GroupAppluResultMsg:
+		case protocol.GroupAppluResultMsg:
 			fallthrough
-		case mkafka.GroupInfoUpdatedMsg:
+		case protocol.GroupInfoUpdatedMsg:
 			fallthrough
-		case mkafka.NewMessageMsg:
+		case protocol.NewMessageMsg:
 			if ack.AckId != nil {
 				c.ackQueue.Ack(*ack.AckId)
 			}
-		case mkafka.MessageMsg:
+		case protocol.MessageMsg:
 			if ack.Kind != nil && ack.Id != nil && ack.Seq != nil {
 				c.pollMutext.Lock()
 				if *ack.Seq > c.acked {
@@ -139,14 +139,14 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 			})
 			return err
 		}
-	case mkafka.HeartbeatMsg:
+	case protocol.HeartbeatMsg:
 		_, err := c.svc.UserRpc.Heartbeat(context.Background(), &user.HeartBeatReq{UserId: c.userId})
 		if err != nil {
 			return err
 		}
 		c.hb <- struct{}{}
 		return nil
-	case mkafka.MessageMsg:
+	case protocol.MessageMsg:
 		req := &access.PollMessageReq{}
 		err := mjson.Unmarshal([]byte(msg.Data), req)
 		if err != nil {
@@ -156,7 +156,7 @@ func (c *Conn) dealMessage(msg *access.Message) error {
 		msgs := c.svc.msgbox.List(req.Kind, req.SessionId, req.Seq)
 		b, _ := mjson.Marshal(msgs)
 		resp := &access.Message{
-			Type: int64(mkafka.MessageMsg),
+			Type: int64(protocol.MessageMsg),
 			Data: string(b),
 		}
 		c.Send(resp)

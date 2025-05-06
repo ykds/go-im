@@ -38,10 +38,6 @@ func NewClient(cfg Config) *Client {
 	}
 }
 
-func (c *Client) Watch(ctx context.Context) clientv3.WatchChan {
-	return c.Client.Watch(ctx, c.cfg.Key)
-}
-
 func (c *Client) Register(name string, addr string) error {
 	if strings.TrimSpace(name) == "" || strings.TrimSpace(addr) == "" {
 		panic("etcd target name or addr empty")

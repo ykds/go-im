@@ -10,13 +10,14 @@ import (
 	"go-im/api/user"
 	"go-im/internal/common/errcode"
 	"go-im/internal/common/jwt"
-	"go-im/internal/common/mkafka"
+	"go-im/internal/common/protocol"
 	"go-im/internal/common/types"
 	"go-im/internal/pkg/db"
 	"go-im/internal/pkg/kafka"
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mjson"
 	"go-im/internal/pkg/redis"
+	"go-im/internal/pkg/utils"
 	"go-im/internal/user/model"
 	"go-im/internal/user/repository"
 	"time"
@@ -33,17 +34,25 @@ type Server struct {
 	friendRepository      *repository.FriendRepository
 	friendApplyRepository *repository.FriendApplyRepository
 
-	kafkaWriter *kafka.Writer
+	kafkaWriter  *kafka.Writer
+	pushCh       chan protocol.PushBody
+	accessClient access.AccessClient
 }
 
-func NewServer(redis *redis.Redis, db *db.DB, kafkaWriter *kafka.Writer) *Server {
-	return &Server{
+func NewServer(redis *redis.Redis, db *db.DB, kafkaWriter *kafka.Writer, accessClient access.AccessClient) *Server {
+	s := &Server{
 		redis:                 redis,
 		kafkaWriter:           kafkaWriter,
 		userRepository:        repository.NewUserRepository(db),
 		friendRepository:      repository.NewFriendRepository(db),
 		friendApplyRepository: repository.NewFriendApplyRepository(db),
+		accessClient:          accessClient,
+		pushCh:                make(chan protocol.PushBody, 2000),
 	}
+	utils.SafeGo(func() {
+		s.consume()
+	})
+	return s
 }
 
 func (s *Server) Connect(ctx context.Context, in *user.ConnectReq) (*user.ConnectResp, error) {
@@ -174,9 +183,10 @@ func (s *Server) UpdateInfo(ctx context.Context, in *user.UpdateInfoReq) (*user.
 				ToId:     onlineUser,
 			}
 			b, _ := mjson.Marshal(&msg)
-			s.kafkaWriter.Send(kafkago.Message{
-				Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendInfoUpdatedMsg),
-				Value: b,
+			s.push(protocol.PushBody{
+				Type: protocol.FriendEventTopic,
+				Key:  fmt.Appendf([]byte{}, "%d", protocol.FriendInfoUpdatedMsg),
+				Body: b,
 			})
 		}
 	}
@@ -255,9 +265,10 @@ func (s *Server) FriendApply(ctx context.Context, in *user.FriendApplyReq) (*use
 		UserId: apply.FriendId,
 	}
 	b, _ := mjson.Marshal(&msg)
-	s.kafkaWriter.Send(kafkago.Message{
-		Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendApplyMsg),
-		Value: b,
+	s.push(protocol.PushBody{
+		Type: protocol.FriendEventTopic,
+		Key:  fmt.Appendf([]byte{}, "%d", protocol.FriendApplyMsg),
+		Body: b,
 	})
 	return &user.FriendApplyResp{}, nil
 }
@@ -284,9 +295,10 @@ func (s *Server) HandleApply(ctx context.Context, in *user.HandleApplyReq) (*use
 			UserId: apply.UserId,
 		}
 		b, _ := mjson.Marshal(&msg)
-		s.kafkaWriter.Send(kafkago.Message{
-			Key:   fmt.Appendf([]byte{}, "%d", mkafka.FriendApplyResultMsg),
-			Value: b,
+		s.push(protocol.PushBody{
+			Type: protocol.FriendEventTopic,
+			Key:  fmt.Appendf([]byte{}, "%d", protocol.FriendApplyResultMsg),
+			Body: b,
 		})
 	} else {
 		err = s.friendApplyRepository.UpdateFriendApply(ctx, in.ApplyId, repository.FriendApplyStatusReject)
@@ -423,4 +435,29 @@ func (s *Server) isUserOnline(ctx context.Context, userId int64) bool {
 		return false
 	}
 	return ret.(int64) > 0
+}
+
+func (s *Server) push(body protocol.PushBody) {
+	s.pushCh <- body
+}
+
+func (s *Server) consume() {
+	for body := range s.pushCh {
+		if s.accessClient != nil {
+			_, err := s.accessClient.PushMessage(context.TODO(), &access.PushMessageReq{
+				Type: body.Type,
+				Key:  body.Key,
+				Body: body.Body,
+			})
+			if err != nil {
+				log.Errorf("push rpc message failed, err: %v", err)
+			}
+		} else {
+			s.kafkaWriter.Send(kafkago.Message{
+				Topic: body.Type,
+				Key:   body.Key,
+				Value: body.Body,
+			})
+		}
+	}
 }

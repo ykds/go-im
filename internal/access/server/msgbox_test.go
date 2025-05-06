@@ -2,7 +2,7 @@ package server
 
 import (
 	"go-im/api/access"
-	"go-im/internal/common/mkafka"
+	"go-im/internal/common/protocol"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func TestMsgBox(t *testing.T) {
 	b := NewMsgBox()
 	for i := 0; i < 20; i++ {
 		b.Append(&access.Message{
-			Type: int64(mkafka.MessageMsg),
+			Type: int64(protocol.MessageMsg),
 			Data: "test",
 		}, nil, 1)
 	}

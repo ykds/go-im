@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"go-im/api/access"
 	"go-im/api/message"
+	"go-im/api/user"
 	"go-im/internal/common/middleware/mgrpc"
 	"go-im/internal/message/config"
 	"go-im/internal/message/server"
@@ -14,17 +16,17 @@ import (
 	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
+	"go-im/internal/pkg/server/rpc"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var cfg = flag.String("c", "./config.yaml", "")
@@ -36,26 +38,24 @@ func main() {
 
 	log.InitLogger(c.Log)
 	defer log.Close()
+
 	mtrace.InitTelemetry(c.Trace)
-	cli := etcd.NewClient(c.Server.Etcd)
-	if cli != nil {
-		err := cli.Register(c.Server.Etcd.Key, c.Server.Addr)
-		if err != nil {
-			panic(err)
-		}
-		defer cli.Close()
-		defer cli.UnRegister(c.Server.Etcd.Key)
-	}
-	if c.Server.Pprof {
+	if c.Pprof {
 		mpprof.RegisterPprof()
 	}
 
 	rdb := redis.NewRedis(c.Redis)
 	defer rdb.Close()
+
 	db := db.NewDB(c.Mysql)
 	defer db.Close()
-	kafkaWriter := kafka.NewProducer(c.Kafka)
-	defer kafkaWriter.Close()
+
+	var kafkaWriter *kafka.Writer
+	if c.Kafka.Enable {
+		kafkaWriter = kafka.NewProducer(c.Kafka)
+		defer kafkaWriter.Close()
+	}
+
 	if c.Prometheus.Enable {
 		mprometheus.GormPrometheus(&c.Prometheus, db.DB, "im")
 		prometheus.MustRegister(mprometheus.RedisPrometheus(&c.Prometheus, rdb, "go-im", "message"))
@@ -68,30 +68,65 @@ func main() {
 		}()
 	}
 
+	if c.Pprof {
+		mpprof.RegisterPprof()
+	}
+
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	}
+	if c.Trace.Enable {
+		opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
+		opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
+	}
+
+	// user rpc client init
 	userAddr := c.UserClient.ParseAddr()
 	if userAddr == "" {
 		panic("user service address is empty")
 	}
-	svc := server.NewServer(c, rdb, db, kafkaWriter, userAddr)
-
-	grpcSvc := grpc.NewServer(
-		grpc.KeepaliveParams(
-			keepalive.ServerParameters{
-				MaxConnectionIdle: 5 * time.Minute,
-				Time:              10 * time.Second,
-				Timeout:           2 * time.Second,
-			}),
-		grpc.ChainUnaryInterceptor(mgrpc.UnaryServerRecovery(), mgrpc.UnaryServerTrace()),
-		grpc.ChainStreamInterceptor(mgrpc.StreamServerRecovery(), mgrpc.StreamServerTrace()),
-	)
-	message.RegisterMessageServer(grpcSvc, svc)
-
-	if c.Server.Addr == "" {
-		c.Server.Addr = "0.0.0.0:8001"
-	}
-	listen, err := net.Listen("tcp", c.Server.Addr)
+	conn, err := grpc.NewClient(userAddr, opts...)
 	if err != nil {
 		panic(err)
+	}
+	userClient := user.NewUserClient(conn)
+
+	// access rpc client init
+	var accessClient access.AccessClient
+	accessAddr := c.AccessClient.ParseAddr()
+	if accessAddr == "" && !c.Kafka.Enable {
+		panic("kafka or access rpc must set")
+	}
+	if accessAddr != "" {
+		conn, err = grpc.NewClient(accessAddr, opts...)
+		if err != nil {
+			panic(err)
+		}
+		accessClient = access.NewAccessClient(conn)
+	}
+
+	svc := server.NewServer(c, rdb, db, kafkaWriter, userClient, accessClient)
+	// grpc server init
+	c.RPC.Trace = c.Trace.Enable
+	grpcSvc := rpc.NewGrpcServer(&c.RPC)
+	message.RegisterMessageServer(grpcSvc, svc)
+	if c.RPC.Addr == "" {
+		c.RPC.Addr = "0.0.0.0:8001"
+	}
+	listen, err := net.Listen("tcp", c.RPC.Addr)
+	if err != nil {
+		panic(err)
+	}
+	if c.RPC.Etcd.Key != "" && c.RPC.Etcd.Addr != "" {
+		cli := etcd.NewClient(c.RPC.Etcd)
+		if cli != nil {
+			err := cli.Register(c.RPC.Etcd.Key, c.RPC.Addr)
+			if err != nil {
+				panic(err)
+			}
+			defer cli.Close()
+			defer cli.UnRegister(c.RPC.Etcd.Key)
+		}
 	}
 
 	done := make(chan struct{})
@@ -102,7 +137,7 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	log.Infof("message rpc server listening on %s", c.Server.Addr)
+	log.Infof("message rpc server listening on %s", c.RPC.Addr)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {

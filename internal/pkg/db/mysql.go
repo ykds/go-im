@@ -44,6 +44,9 @@ func NewDB(cfg Config) *DB {
 		db  *gorm.DB
 		err error
 	)
+	if cfg.Timezone == "" {
+		cfg.Timezone = "Asia/Shanghai"
+	}
 	switch cfg.Driver {
 	case Postgres:
 		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=%s",

@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -39,7 +38,7 @@ func main() {
 	defer rdb.Close()
 
 	gin.DefaultWriter = io.Discard
-	if c.Server.Debug {
+	if c.Debug {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
@@ -49,13 +48,10 @@ func main() {
 	if c.Trace.Enable {
 		engine.Use(mhttp.Trace())
 	}
-	if c.Server.Debug {
-		pprof.Register(engine)
-	}
 	if c.Prometheus.Enable {
 		engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	}
-	if c.Server.Pprof {
+	if c.Pprof {
 		mpprof.RegisterPprof()
 	}
 	api := engine.Group("/api")
@@ -67,7 +63,7 @@ func main() {
 	seqApi.RegisterRouter(api)
 
 	if c.Server.Addr == "" {
-		c.Server.Addr = "0.0.0.0:8004"
+		c.Server.Addr = "0.0.0.0:9001"
 	}
 	svc := http.Server{
 		Addr:    c.Server.Addr,

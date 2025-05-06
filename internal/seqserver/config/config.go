@@ -11,19 +11,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type ServerConfig struct {
-	Addr  string `json:"addr" yaml:"addr"`
-	Debug bool   `json:"debug" yaml:"debug"`
-	Pprof bool   `json:"pprof" yaml:"pprof"`
+type HttpServer struct {
+	Addr string `yaml:"addr"`
 }
 
 type Config struct {
-	Server     ServerConfig       `json:"server" yaml:"server"`
-	JWT        jwt.Config         `json:"jwt" yaml:"jwt"`
-	Log        log.Config         `json:"log" yaml:"log"`
-	Trace      mtrace.Config      `json:"trace" yaml:"trace"`
-	Redis      redis.Config       `json:"redis" yaml:"redis"`
-	Prometheus mprometheus.Config `json:"prometheus" yaml:"prometheus"`
+	Debug      bool               `yaml:"debug"`
+	Pprof      bool               `yaml:"pprof"`
+	Server     HttpServer         `yaml:"http"`
+	JWT        jwt.Config         `yaml:"jwt"`
+	Log        log.Config         `yaml:"log"`
+	Trace      mtrace.Config      `yaml:"trace"`
+	Redis      redis.Config       `yaml:"redis"`
+	Prometheus mprometheus.Config `yaml:"prometheus"`
 }
 
 func ParseConfig(file string) *Config {

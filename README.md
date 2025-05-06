@@ -80,8 +80,145 @@ api服务、用户服务、消息服务之间通过 grpc 来实现通讯。
 
 每一条新消息通过`会话ID`定位到对应的桶，再通过`会话ID`定位到对应的`MsgList`。
 
+## Quick Start
+> git clone https://github.com/ykds/go-im.git
+>
+> cd go-im/
+>
+> go mod tidy
 
-## Deployment
+### 一. 创建数据表
+> CREATE DATABASE goim;
+> 
+> mysql -uroot -p goim < goim.sql 
+
+### 二. 安装 Redis
+> docker compose -f other.yaml up redis -d // 没有 Docker 可自行安装 Redis
+
+### 三. 修改配置文件
+#### cmd/user/config.yaml
+```
+rpc:
+  addr: 127.0.0.1:8000
+
+mysql:
+  driver: mysql
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: 
+  db_name: goim
+
+redis:
+  addr: 127.0.0.1:6379
+
+jwt:
+  key: "test"
+
+access_client:
+  type: direct
+  addr: 127.0.0.1:8002
+```
+#### cmd/message/config.yaml
+```
+rpc:
+  addr: 127.0.0.1:8001
+
+mysql:
+  driver: mysql
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: 
+  db_name: goim
+
+redis:
+  addr: 127.0.0.1:6379
+
+user_client:
+  type: direct
+  addr: 127.0.0.1:8000
+
+access_client:
+  type: direct
+  addr: 127.0.0.1:8002
+```
+
+#### cmd/access/config.yaml
+```
+http:
+  addr: 127.0.0.1:8012
+
+rpc:
+  addr: 127.0.0.1:8002
+
+redis:
+  addr: 127.0.0.1:6379
+
+jwt:
+  key: "test"
+
+user_client:
+  type: direct
+  addr: 127.0.0.1:8000
+
+message_client:
+  type: direct
+  addr: 127.0.0.1:8001
+```
+
+#### cmd/gateway/config.yaml
+```
+http:
+  addr: 127.0.0.1:9000
+  static: 
+
+jwt:
+  key: "test"
+
+user_client:
+  type: direct
+  addr: 127.0.0.1:8000
+
+message_client:
+  type: direct
+  addr: 127.0.0.1:8001
+```
+
+#### cmd/seqserver/config.yaml
+```
+http:
+  addr: 127.0.0.1:9001
+
+redis:
+  addr: 127.0.0.1:6379
+
+jwt:
+  key: "test"
+```
+
+### 四. 编译&运行
+> make build-all
+>
+> ./build/gateway -c cmd/gateway/config.yaml
+> 
+> ./build/user -c cmd/user/config.yaml
+> 
+> ./build/message -c cmd/message/config.yaml
+> 
+> ./build/access -c cmd/access/config.yaml
+> 
+> ./build/seqserver -c cmd/seqserver/config.yaml
+
+#### 五. 运行前端
+> git clone https://github.com/ykds/frontend-go-im.git
+>
+> cd frontend-go-im/
+>
+> pnpm install && pnpm run dev
+
+
+## Full Deployment
 ```
 Linux 环境：
 - Ubuntu 22.04

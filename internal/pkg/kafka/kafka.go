@@ -20,14 +20,15 @@ type Writer struct {
 }
 
 type Consumer struct {
-	Topic string `json:"topic" yaml:"topic"`
-	Group string `json:"group" yaml:"group"`
+	Topic string `yaml:"topic"`
+	Group string `yaml:"group"`
 }
 
 type Config struct {
-	Brokers       []string   `json:"brokers"`
-	Topic         string     `json:"topic" yaml:"topic"`
-	ConsumerGroup []Consumer `json:"consumer_group" yaml:"consumer_group"`
+	Enable        bool       `yaml:"enable"`
+	Brokers       []string   `yaml:"brokers"`
+	Topic         string     `yaml:"topic"`
+	ConsumerGroup []Consumer `yaml:"consumer_group"`
 }
 
 func NewProducer(c Config, opts ...WriterOption) *Writer {

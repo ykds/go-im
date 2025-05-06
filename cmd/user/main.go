@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"go-im/api/access"
 	"go-im/api/user"
 	"go-im/internal/common/jwt"
 	"go-im/internal/common/middleware/mgrpc"
@@ -13,6 +14,7 @@ import (
 	"go-im/internal/pkg/mprometheus"
 	"go-im/internal/pkg/mtrace"
 	"go-im/internal/pkg/redis"
+	"go-im/internal/pkg/server/rpc"
 	"go-im/internal/user/config"
 	"go-im/internal/user/server"
 	"net"
@@ -20,12 +22,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 var cfg = flag.String("c", "./config.yaml", "")
@@ -39,22 +40,17 @@ func main() {
 	defer log.Close()
 	jwt.Init(c.JWT)
 	mtrace.InitTelemetry(c.Trace)
-	cli := etcd.NewClient(c.Server.Etcd)
-	if cli != nil {
-		err := cli.Register(c.Server.Etcd.Key, c.Server.Addr)
-		if err != nil {
-			panic(err)
-		}
-		defer cli.Close()
-		defer cli.UnRegister(c.Server.Etcd.Key)
-	}
 
 	rdb := redis.NewRedis(c.Redis)
 	defer rdb.Close()
 	db := db.NewDB(c.Mysql)
 	defer db.Close()
-	kafkaWriter := kafka.NewProducer(c.Kafka)
-	defer kafkaWriter.Close()
+
+	var kafkaWriter *kafka.Writer
+	if c.Kafka.Enable {
+		kafkaWriter := kafka.NewProducer(c.Kafka)
+		defer kafkaWriter.Close()
+	}
 
 	if c.Prometheus.Enable {
 		mprometheus.GormPrometheus(&c.Prometheus, db.DB, "im")
@@ -68,29 +64,53 @@ func main() {
 		}()
 	}
 
-	svc := server.NewServer(rdb, db, kafkaWriter)
-
-	grpcSvc := grpc.NewServer(
-		grpc.KeepaliveParams(
-			keepalive.ServerParameters{
-				MaxConnectionIdle: 5 * time.Minute,
-				Time:              10 * time.Second,
-				Timeout:           2 * time.Second,
-			}),
-		grpc.ChainUnaryInterceptor(mgrpc.UnaryServerRecovery(), mgrpc.UnaryServerTrace()),
-		grpc.ChainStreamInterceptor(mgrpc.StreamServerRecovery(), mgrpc.StreamServerTrace()),
-	)
-	user.RegisterUserServer(grpcSvc, svc)
-
-	if c.Server.Addr == "" {
-		c.Server.Addr = "0.0.0.0:8000"
-	}
-	if c.Server.Pprof {
+	if c.Pprof {
 		mpprof.RegisterPprof()
 	}
-	listen, err := net.Listen("tcp", c.Server.Addr)
+
+	// access rpc client init
+	var accessClient access.AccessClient
+	accessAddr := c.AccessClient.ParseAddr()
+	if accessAddr == "" && !c.Kafka.Enable {
+		panic("kafka or access rpc must set")
+	}
+	if accessAddr != "" {
+		opts := []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		}
+		if c.Trace.Enable {
+			opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
+			opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
+		}
+		conn, err := grpc.NewClient(accessAddr, opts...)
+		if err != nil {
+			panic(err)
+		}
+		accessClient = access.NewAccessClient(conn)
+	}
+
+	svc := server.NewServer(rdb, db, kafkaWriter, accessClient)
+
+	c.RPC.Trace = c.Trace.Enable
+	grpcSvc := rpc.NewGrpcServer(&c.RPC)
+	user.RegisterUserServer(grpcSvc, svc)
+	if c.RPC.Addr == "" {
+		c.RPC.Addr = "0.0.0.0:8000"
+	}
+	listen, err := net.Listen("tcp", c.RPC.Addr)
 	if err != nil {
 		panic(err)
+	}
+	if c.RPC.Etcd.Addr != "" && c.RPC.Etcd.Key != "" {
+		cli := etcd.NewClient(c.RPC.Etcd)
+		if cli != nil {
+			err := cli.Register(c.RPC.Etcd.Key, c.RPC.Addr)
+			if err != nil {
+				panic(err)
+			}
+			defer cli.Close()
+			defer cli.UnRegister(c.RPC.Etcd.Key)
+		}
 	}
 
 	done := make(chan struct{})
@@ -101,7 +121,7 @@ func main() {
 		done <- struct{}{}
 	}()
 
-	log.Infof("user rpc server listening on %s", c.Server.Addr)
+	log.Infof("user rpc server listening on %s", c.RPC.Addr)
 
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 	select {

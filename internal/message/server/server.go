@@ -8,8 +8,7 @@ import (
 	"go-im/api/message"
 	"go-im/api/user"
 	"go-im/internal/common/errcode"
-	"go-im/internal/common/middleware/mgrpc"
-	"go-im/internal/common/mkafka"
+	"go-im/internal/common/protocol"
 	"go-im/internal/common/types"
 	"go-im/internal/message/config"
 	"go-im/internal/message/model"
@@ -19,11 +18,10 @@ import (
 	"go-im/internal/pkg/log"
 	"go-im/internal/pkg/mjson"
 	"go-im/internal/pkg/redis"
+	"go-im/internal/pkg/utils"
 	"strconv"
 
 	kafkago "github.com/segmentio/kafka-go"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"gorm.io/gorm"
 )
 
@@ -38,23 +36,15 @@ type Server struct {
 	userGroupRepository   *repository.UserGroupRepository
 	userSessionRepository *repository.UserSessionRepository
 
-	userRpc user.UserClient
+	userRpc      user.UserClient
+	accessClient access.AccessClient
 
 	kafkaWriter *kafka.Writer
+
+	pushCh chan protocol.PushBody
 }
 
-func NewServer(cfg *config.Config, redis *redis.Redis, db *db.DB, kafkaWriter *kafka.Writer, userRpcAddr string) *Server {
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-	if cfg.Trace.Enable {
-		opts = append(opts, grpc.WithChainUnaryInterceptor(mgrpc.UnaryClientTrace()))
-		opts = append(opts, grpc.WithChainStreamInterceptor(mgrpc.StreamClientTrace()))
-	}
-	conn, err := grpc.NewClient(userRpcAddr, opts...)
-	if err != nil {
-		panic(err)
-	}
+func NewServer(cfg *config.Config, redis *redis.Redis, db *db.DB, kafkaWriter *kafka.Writer, userRpcClient user.UserClient, accessClient access.AccessClient) *Server {
 	s := &Server{
 		redis:                 redis,
 		kafkaWriter:           kafkaWriter,
@@ -64,8 +54,13 @@ func NewServer(cfg *config.Config, redis *redis.Redis, db *db.DB, kafkaWriter *k
 		messageRepository:     repository.NewMessageRepository(db),
 		userGroupRepository:   repository.NewUserGroupRepository(db),
 		userSessionRepository: repository.NewUserSessionRepository(db),
-		userRpc:               user.NewUserClient(conn),
+		userRpc:               userRpcClient,
+		accessClient:          accessClient,
+		pushCh:                make(chan protocol.PushBody, 2000),
 	}
+	utils.SafeGo(func() {
+		s.consume()
+	})
 	return s
 }
 
@@ -119,10 +114,10 @@ func (s *Server) ApplyInGroup(ctx context.Context, in *message.ApplyInGroupReq) 
 		GroupId: group.ID,
 	}
 	b, _ := mjson.Marshal(&msg)
-	s.kafkaWriter.Send(kafkago.Message{
-		Topic: mkafka.GroupEventTopic,
-		Key:   fmt.Appendf([]byte{}, "%d", group.OwnerId),
-		Value: b,
+	s.push(protocol.PushBody{
+		Type: protocol.GroupEventTopic,
+		Key:  fmt.Appendf([]byte{}, "%d", group.OwnerId),
+		Body: b,
 	})
 	return &message.ApplyInGroupResp{}, nil
 }
@@ -221,9 +216,10 @@ func (s *Server) DismissGroup(ctx context.Context, in *message.DismissGroupReq) 
 				ToId:    onlineUser,
 			}
 			b, _ := mjson.Marshal(&msg)
-			s.kafkaWriter.Send(kafkago.Message{
-				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupDismissMsg),
-				Value: b,
+			s.push(protocol.PushBody{
+				Type: protocol.GroupEventTopic,
+				Key:  fmt.Appendf([]byte{}, "%d", protocol.GroupDismissMsg),
+				Body: b,
 			})
 		}
 	}
@@ -259,9 +255,10 @@ func (s *Server) ExitGroup(ctx context.Context, in *message.ExitGroupReq) (*mess
 				ToId:    onlineUser,
 			}
 			b, _ := mjson.Marshal(&msg)
-			s.kafkaWriter.Send(kafkago.Message{
-				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
-				Value: b,
+			s.push(protocol.PushBody{
+				Type: protocol.GroupEventTopic,
+				Key:  fmt.Appendf([]byte{}, "%d", protocol.GroupMemberChangeMsg),
+				Body: b,
 			})
 		}
 	}
@@ -288,10 +285,10 @@ func (s *Server) HandleGroupApply(ctx context.Context, in *message.HandleGroupAp
 		Status: in.Status,
 	}
 	b, _ := mjson.Marshal(&msg)
-	s.kafkaWriter.Send(kafkago.Message{
-		Topic: mkafka.GroupEventTopic,
-		Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupAppluResultMsg),
-		Value: b,
+	s.push(protocol.PushBody{
+		Type: protocol.GroupEventTopic,
+		Key:  fmt.Appendf([]byte{}, "%d", protocol.GroupAppluResultMsg),
+		Body: b,
 	})
 	return &message.HandleGroupApplyResp{}, nil
 }
@@ -325,9 +322,11 @@ func (s *Server) InviteMember(ctx context.Context, in *message.InviteMemberReq) 
 				ToId:    onlineUser,
 			}
 			b, _ := mjson.Marshal(&msg)
-			s.kafkaWriter.Send(kafkago.Message{
-				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
-				Value: b,
+
+			s.push(protocol.PushBody{
+				Type: protocol.GroupEventTopic,
+				Key:  fmt.Appendf([]byte{}, "%d", protocol.GroupMemberChangeMsg),
+				Body: b,
 			})
 		}
 	}
@@ -604,9 +603,10 @@ func (s *Server) MoveOutMember(ctx context.Context, in *message.MoveOutMemberReq
 				ToId:    onlineUser,
 			}
 			b, _ := mjson.Marshal(&msg)
-			s.kafkaWriter.Send(kafkago.Message{
-				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupMemberChangeMsg),
-				Value: b,
+			s.push(protocol.PushBody{
+				Type: protocol.GroupEventTopic,
+				Key:  fmt.Appendf([]byte{}, "%d", protocol.GroupMemberChangeMsg),
+				Body: b,
 			})
 		}
 	}
@@ -689,21 +689,19 @@ func (s *Server) SendMessage(ctx context.Context, in *message.SendMessageReq) (*
 		Id:        msgId,
 		SessionId: sessionId,
 		FromId:    msg.FromId,
+		ToId:      msg.ToId,
 		Content:   msg.Content,
 		Seq:       msg.Seq,
 		Kind:      msg.Kind,
 	}
 	b, _ := mjson.Marshal(&msg2)
-	s.sendKafka(in.ToId, in.Kind, b)
-	return &message.SendMessageResp{}, nil
-}
 
-func (s *Server) sendKafka(toId int64, kind string, b []byte) {
-	s.kafkaWriter.Send(kafkago.Message{
-		Topic: mkafka.MessageTopic,
-		Key:   fmt.Appendf([]byte{}, "%s-%d", kind, toId),
-		Value: b,
+	s.push(protocol.PushBody{
+		Type: protocol.MessageTopic,
+		Key:  fmt.Appendf([]byte{}, "%s-%d", msg.Kind, msg.ToId),
+		Body: b,
 	})
+	return &message.SendMessageResp{}, nil
 }
 
 func (s *Server) isUserOnline(ctx context.Context, userId int64) bool {
@@ -825,11 +823,37 @@ func (s *Server) UpdateGroupInfo(ctx context.Context, in *message.UpdateGroupInf
 				ToId:    onlineUser,
 			}
 			b, _ := mjson.Marshal(&msg)
-			s.kafkaWriter.Send(kafkago.Message{
-				Key:   fmt.Appendf([]byte{}, "%d", mkafka.GroupInfoUpdatedMsg),
-				Value: b,
+			s.push(protocol.PushBody{
+				Type: protocol.GroupEventTopic,
+				Key:  fmt.Appendf([]byte{}, "%d", protocol.GroupInfoUpdatedMsg),
+				Body: b,
 			})
 		}
 	}
 	return &message.UpdateGroupInfoResp{}, nil
+}
+
+func (s *Server) push(body protocol.PushBody) {
+	s.pushCh <- body
+}
+
+func (s *Server) consume() {
+	for body := range s.pushCh {
+		if s.accessClient != nil {
+			_, err := s.accessClient.PushMessage(context.TODO(), &access.PushMessageReq{
+				Type: body.Type,
+				Key:  body.Key,
+				Body: body.Body,
+			})
+			if err != nil {
+				log.Errorf("push rpc message failed, err: %v", err)
+			}
+		} else {
+			s.kafkaWriter.Send(kafkago.Message{
+				Topic: body.Type,
+				Key:   body.Key,
+				Value: body.Body,
+			})
+		}
+	}
 }
